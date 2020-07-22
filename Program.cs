@@ -84,12 +84,11 @@ namespace IngameScript
         bool firstTimeStepExecution = true;
 
         Waypoint currentWaypoint;
-        List<Waypoint> waypoints = new List<Waypoint>() {
-            new Waypoint("waypoint1", new Vector3D(1220108.79, 302458.82, -2380849.94), true),
-            new Waypoint("waypoint3", new Vector3D(1220344.52, 302516.19, -2381069.05), false),
-            new Waypoint("waypoint2", new Vector3D(1220369.21, 302211.52, -2380983.47), true),
-            new Waypoint("waypoint4", new Vector3D(1220344.52, 302516.19, -2381069.05), false)
-        };
+        List<Waypoint> waypoints = new List<Waypoint>();
+
+        IMyRemoteControl remoteControl;
+
+        Vector3D lastDockedPosition = Vector3D.Zero;
 
         #endregion
 
@@ -134,7 +133,7 @@ namespace IngameScript
         /// <summary>
         /// The format for the text to echo at the start of each call.
         /// </summary>
-        const string FORMAT_TIM_UPDATE_TEXT = "Solar Map\n{0}\nLast run: #{{0}} at {{1}}";
+        const string FORMAT_TIM_UPDATE_TEXT = "Automated Shuttle\n{0}\nLast run: #{{0}} at {{1}}";
 
         #endregion
 
@@ -147,7 +146,8 @@ namespace IngameScript
                 Echo(log);
             };
 
-
+            RetrieveCustomData();
+            RetrieveStorage();
 
             // initialise the process steps we will need to do
             processSteps = new Action[]
@@ -158,18 +158,16 @@ namespace IngameScript
                 DockToStation,
                 WaitDocking,
                 DoAfterDocking,
+                RechargeBatteries,
                 WaitAtStation,
                 DoBeforeUndocking,
                 UndockShip,
                 MoveAwayFromDock
             };
 
-            // init settings
-            _ini.TryParse(Me.CustomData);
-
             Runtime.UpdateFrequency = FREQUENCY;
 
-            EchoR("Compiled SolarMap " + VERSION_NICE_TEXT);
+            EchoR("Compiled Automated Shuttle " + VERSION_NICE_TEXT);
 
             // format terminal info text
             timUpdateText = string.Format(FORMAT_TIM_UPDATE_TEXT, VERSION_NICE_TEXT);
@@ -189,6 +187,34 @@ namespace IngameScript
             }
         }
 
+        private void RetrieveCustomData()
+        {
+            // init settings
+            _ini.TryParse(Me.CustomData);
+
+            string customDataWaypoints = _ini.Get("SHUTTLE", "Waypoints").ToString() ?? "";
+            string[] _waypoints = customDataWaypoints.Split(',');
+            for (int i = 0; i < _waypoints.Count(); i++)
+            {
+                waypoints.Add(new Waypoint(_waypoints[i]));
+            }
+        }
+
+        private IMyRemoteControl RemoteControl {
+            get {
+                List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
+                GridTerminalSystem.GetBlocksOfType(blocks);
+                IMyRemoteControl controlBlock = blocks.Find(block => block.IsFunctional & block.IsWorking);
+                if (controlBlock == null)
+                {
+                    EchoR("No working remote control found on the ship.");
+                    throw new PutOffExecutionException();
+                }
+                remoteControl = controlBlock;
+                return remoteControl;
+            }
+        }
+
         public void Main(string argument, UpdateType updateSource)
         {
             currentCycleStartTime = DateTime.Now;
@@ -205,13 +231,8 @@ namespace IngameScript
             try
             {
                 processSteps[processStep]();
+                EchoR(string.Format("Registered waypoints: #{0}", waypoints.Count()));
                 EchoR(string.Format("Next waypoint: {0}", currentWaypoint.Name));
-                //do
-                //{
-                //    processSteps[processStep]();
-                //} while (processStep < processSteps.Length && DoExecutionLimitCheck());
-                // if we get here it means we completed all the process steps
-                //processStep = 0;
             }
             catch (PutOffExecutionException) { }
             catch (Exception ex)
@@ -243,24 +264,36 @@ namespace IngameScript
 
         #region Process Steps
 
+        // step 0
         public void FindNextWaypoint()
         {
-            int totalWaypoints = waypoints.Count();
-            if (currentWaypoint == null) {
+            if (currentWaypoint == null)
+            {
                 currentWaypoint = waypoints.First();
-            } else {
-                int index = waypoints.FindIndex(wp => wp.Name == currentWaypoint.Name);
-                currentWaypoint = waypoints[(index + 1) % totalWaypoints];
+            }
+            else
+            {
+                double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, Me.GetPosition());
+                
+                EchoR("distanceFromWaypoint: " + distanceFromWaypoint);
+                if (distanceFromWaypoint < 100)
+                {
+                    EchoR("changing waypoint");
+                    int totalWaypoints = waypoints.Count();
+                    int index = waypoints.FindIndex(wp => wp.Name == currentWaypoint.Name);
+                    currentWaypoint = waypoints[(index + 1) % totalWaypoints];
+                }
+                
             }
             
             processStep++;
         }
 
+        // step 1
         public void GoToWaypoint() {
-            List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
-            GridTerminalSystem.GetBlocksOfType(blocks, blk => blk.CustomName.Contains("[MAINCONTROL]"));
-            int firstAvailableIndex = blocks.FindIndex(block => block.IsFunctional & block.IsWorking);
-            IMyRemoteControl controlBlock = blocks[firstAvailableIndex];
+            skipIfDocked();
+
+            IMyRemoteControl controlBlock = RemoteControl;
             controlBlock.SetCollisionAvoidance(true);
             controlBlock.FlightMode = FlightMode.OneWay;
             controlBlock.SetDockingMode(false);
@@ -277,19 +310,14 @@ namespace IngameScript
             processStep++;
         }
 
+        // step 2
         public void TravelToWaypoint() {
-            List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
-            GridTerminalSystem.GetBlocksOfType(blocks, blk => blk.CustomName.Contains("[MAINCONTROL]"));
-            int firstAvailableIndex = blocks.FindIndex(block => block.IsFunctional & block.IsWorking);
-            IMyRemoteControl controlBlock = blocks[firstAvailableIndex];
-            
-            Vector3 currentPosition = Me.GetPosition();
-            float distanceToWaypoint = Vector3.Distance(currentPosition, currentWaypoint.Coords);
-            if (controlBlock.GetShipSpeed() == 0) {
+            if (RemoteControl.GetShipSpeed() == 0) {
                 processStep++;
             }
         }
 
+        // step 3
         public void DockToStation()
         {
             skipIfDocked();
@@ -298,8 +326,7 @@ namespace IngameScript
             // start docking
             List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
             GridTerminalSystem.GetBlocksOfType(blocks, blk => blk.CustomName.Contains("[DOCKING]"));
-            int firstAvailableIndex = blocks.FindIndex(block => block.IsFunctional & block.IsWorking);
-            IMyProgrammableBlock programmableBlock = blocks[firstAvailableIndex];
+            IMyProgrammableBlock programmableBlock = blocks.Find(block => block.IsFunctional & block.IsWorking);
 
             if (programmableBlock.IsRunning) { return; }
             programmableBlock.TryRun(currentWaypoint.Name);
@@ -307,6 +334,7 @@ namespace IngameScript
             processStep++;
         }
 
+        // step 4
         public void WaitDocking() {
             skipIfDocked();
             skipIfWaypointWithoutDock();
@@ -319,16 +347,40 @@ namespace IngameScript
             }
         }
 
+        // step 5
         public void DoAfterDocking()
         {
+            lastDockedPosition = RemoteControl.GetPosition();
             var doors = new List<IMyDoor>();
             GridTerminalSystem.GetBlocksOfType(doors, door => door.CustomName.Contains("[DOOR]"));
             doors.ForEach(door => {
                 //door.OpenDoor();
                 door.Enabled = true;
             });
+            processStep++;
         }
 
+        // step 6
+        public void RechargeBatteries()
+        {
+            skipIfUndocked();
+            var batteries = new List<IMyBatteryBlock>();
+            GridTerminalSystem.GetBlocksOfType(batteries, battery => battery.IsWorking);
+
+            if (RemainingBatteryCapacity(batteries) < 0.5)
+            {
+                batteries.ForEach(battery => {
+                    battery.ChargeMode = ChargeMode.Auto;
+                });
+            }
+            else
+            {
+                processStep++;
+            }
+
+        }
+
+        // step 7
         public void WaitAtStation()
         {
             skipIfUndocked();
@@ -345,6 +397,7 @@ namespace IngameScript
             }
         }
 
+        // step 7
         public void DoBeforeUndocking()
         {
             var doors = new List<IMyDoor>();
@@ -353,8 +406,10 @@ namespace IngameScript
                 door.CloseDoor();
                 door.Enabled = false;
             });
+            processStep++;
         }
 
+        // step 8
         public void UndockShip()
         {
             skipIfWaypointWithoutDock();
@@ -368,6 +423,7 @@ namespace IngameScript
             processStep++;
         }
 
+        // step 9
         public void MoveAwayFromDock()
         {
             skipIfWaypointWithoutDock();
@@ -386,15 +442,17 @@ namespace IngameScript
                     connectorThrusters.Add(thrust);
                 }
             }
-
-            float distanceFromDock = Vector3.Distance(currentWaypoint.Coords, Me.GetPosition());
-            if (distanceFromDock < 50)
+            
+            double currentSpeed = RemoteControl.GetShipSpeed();
+            double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
+            if (distanceFromDock < 50 && currentSpeed < 5)
             {
-                connectorThrusters.ForEach(thrust => {
-                    thrust.ThrustOverridePercentage = 1;
+                connectorThrusters.ForEach(thrust =>
+                {
+                    thrust.ThrustOverridePercentage += 0.1f;
                 });
             }
-            else
+            else if (distanceFromDock > 50)
             {
                 connectorThrusters.ForEach(thrust => {
                     thrust.ThrustOverridePercentage = 0;
@@ -408,7 +466,7 @@ namespace IngameScript
         {
             // check if the ship is connected to a grid
             List<IMyShipConnector> connectors = new List<IMyShipConnector>();
-            GridTerminalSystem.GetBlocksOfType(connectors, blk => blk.CustomData.Contains("[CONNECTOR]"));
+            GridTerminalSystem.GetBlocksOfType(connectors, blk => blk.CustomName.Contains("[CONNECTOR]"));
             IMyShipConnector connector = connectors.First();
             if (connector.Status == MyShipConnectorStatus.Connected || connector.Status == MyShipConnectorStatus.Connectable)
             {
@@ -421,7 +479,7 @@ namespace IngameScript
         {
             // check if the ship is connected to a grid
             List<IMyShipConnector> connectors = new List<IMyShipConnector>();
-            GridTerminalSystem.GetBlocksOfType(connectors, blk => blk.CustomData.Contains("[CONNECTOR]"));
+            GridTerminalSystem.GetBlocksOfType(connectors, blk => blk.CustomName.Contains("[CONNECTOR]"));
             IMyShipConnector connector = connectors.First();
             if (connector.Status == MyShipConnectorStatus.Unconnected)
             {
@@ -439,6 +497,26 @@ namespace IngameScript
             }
         }
 
+        private float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
+        {
+            float totalCurrentCapacity = 0; float totalMaxCapacity = 0;
+            for (int i = 0; i < batteries.Count(); i++)
+            {
+                float capacity = batteries[i].CurrentStoredPower / batteries[i].MaxStoredPower;
+                if (batteries[i].IsCharging && capacity < 0.8)
+                {
+                    totalCurrentCapacity = 0;
+                }
+                else
+                {
+                    totalCurrentCapacity = batteries[i].CurrentStoredPower;
+                }
+                totalMaxCapacity = batteries[i].MaxStoredPower;
+            }
+
+            return totalCurrentCapacity / totalMaxCapacity;
+        }
+
         #endregion
 
         private class Waypoint {
@@ -454,6 +532,18 @@ namespace IngameScript
                 this.Coords = coords;
                 this.HasDock = hasDock;
                 this.Name = name;
+            }
+
+            public Waypoint(string waypointData)
+            {
+                //GPS: WAYPOINT 1:227004.83:227029.62:227020.38:
+                MyWaypointInfo waypointInfo;
+                if (MyWaypointInfo.TryParse(waypointData, out waypointInfo))
+                {
+                    this.Name = waypointInfo.Name;
+                    this.Coords = waypointInfo.Coords;
+                    this.HasDock = true;
+                }
             }
         }
 
