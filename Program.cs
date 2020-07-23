@@ -232,6 +232,7 @@ namespace IngameScript
             // initialise the process steps we will need to do
             processSteps = new Action[]
             {
+                ResetControl,
                 FindNextWaypoint,  // 0
                 GoToWaypoint,      // 1
                 TravelToWaypoint,  // 2
@@ -360,7 +361,7 @@ namespace IngameScript
                 stepText = string.Format("step {0}", processStepTmp);
             else
                 stepText = string.Format("steps {0} to {1}", processStepTmp, theoryProcessStep - 1);
-            EchoR(string.Format("Completed {0} in {1}ms, {2}% load ({3} instructions)",
+            EchoR(string.Format("Completed {0} in {1}ms\n{2}% load ({3} instructions)",
                 stepText, exTime, exLoad, Runtime.CurrentInstructionCount));
 
             if (!terminalCycle.MoveNext())
@@ -371,8 +372,16 @@ namespace IngameScript
 
         #region Process Steps
 
+        void ResetControl()
+        {
+            ResetBatteryMode();
+            ZeroThrust();
+            
+            processStep++;
+        }
+
         // step 0
-        public void FindNextWaypoint()
+        void FindNextWaypoint()
         {
             if (waypoints.Count() == 0)
             {
@@ -400,8 +409,8 @@ namespace IngameScript
         }
 
         // step 1
-        public void GoToWaypoint() {
-            skipIfDocked();
+        void GoToWaypoint() {
+            SkipIfDocked();
 
             IMyRemoteControl controlBlock = RemoteControl;
             controlBlock.SetCollisionAvoidance(true);
@@ -421,26 +430,29 @@ namespace IngameScript
         }
 
         // step 2
-        public void TravelToWaypoint() {
-            skipIfDocked();
+        void TravelToWaypoint() {
+            SkipIfDocked();
 
             double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, Me.GetPosition());
-            if (RemoteControl.GetShipSpeed() == 0 && distanceFromWaypoint < 100) {
+            if (Math.Round(RemoteControl.GetShipSpeed(), 0) == 0 && distanceFromWaypoint < 100) {
                 processStep++;
             }
         }
 
         // step 3
-        public void DockToStation()
+        void DockToStation()
         {
-            skipIfDocked();
-            skipIfWaypointWithoutDock();
+            SkipIfDocked();
+            SkipIfWaypointWithoutDock();
 
             // start docking
             List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
-            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, "shuttle"));
+            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, "shuttle:docking"));
             IMyProgrammableBlock programmableBlock = blocks.Find(block => block.IsFunctional & block.IsWorking);
-
+            if (programmableBlock == null) {
+                processStep++;
+                throw new PutOffExecutionException();
+            }
             if (programmableBlock.IsRunning) { return; }
             programmableBlock.TryRun(currentWaypoint.Name);
 
@@ -448,19 +460,10 @@ namespace IngameScript
         }
 
         // step 4
-        public void WaitDocking() {
-            try
-            {
-                skipOnTimeout(30);
-            } catch (PutOffExecutionException)
-            {
-                List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
-                GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, "shuttle"));
-                IMyProgrammableBlock programmableBlock = blocks.Find(block => block.IsFunctional & block.IsWorking);
-                programmableBlock.TryRun("");
-            }
-            skipIfWaypointWithoutDock();
-            
+        void WaitDocking() {
+            SkipOnTimeout(30);
+            SkipIfWaypointWithoutDock();
+
             if (DockingConnector.Status == MyShipConnectorStatus.Connectable 
                 || DockingConnector.Status == MyShipConnectorStatus.Connected) {
 
@@ -469,12 +472,12 @@ namespace IngameScript
         }
 
         // step 5
-        public void DoAfterDocking()
+        void DoAfterDocking()
         {
-            skipIfUndocked();
+            SkipIfUndocked();
 
             var doors = new List<IMyDoor>();
-            GridTerminalSystem.GetBlocksOfType(doors, door => door.CustomName.Contains("[SHUTTLE]"));
+            GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
             doors.ForEach(door => {
                 //door.OpenDoor();
                 door.Enabled = true;
@@ -484,15 +487,20 @@ namespace IngameScript
         }
 
         // step 6
-        public void RechargeBatteries()
+        void RechargeBatteries()
         {
-            skipIfUndocked();
+            SkipIfUndocked();
 
             var batteries = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
-            if (batteries.Count() == 0) throw new PutOffExecutionException();
+            EchoR(string.Format("Found #{0} batteries", batteries.Count()));
+            if (batteries.Count() == 0)
+            {
+                processStep++;
+                throw new PutOffExecutionException();
+            }
 
-            float remainingCapacity = Utils.RemainingBatteryCapacity(batteries);
+            float remainingCapacity = RemainingBatteryCapacity(batteries);
             
             if (remainingCapacity < 0.6 || (remainingCapacity < 0.9 && lowBatteryCapacityDetected))
             {
@@ -506,6 +514,7 @@ namespace IngameScript
                     }
                     else
                     {
+                        EchoR("" + battery.CustomName);
                         battery.ChargeMode = ChargeMode.Recharge;
                     }
                 });
@@ -522,7 +531,7 @@ namespace IngameScript
         }
 
         // step 7
-        public void WaitAtStation()
+        void WaitAtStation()
         {
             DateTime n = DateTime.Now;
             if (n - previousStepEndTime >= maxWaitTimeAtWaypoint)
@@ -532,7 +541,7 @@ namespace IngameScript
         }
 
         // step 8
-        public void DoBeforeUndocking()
+        void DoBeforeUndocking()
         {
             lastDockedPosition = RemoteControl.GetPosition();
             var doors = new List<IMyDoor>();
@@ -546,9 +555,9 @@ namespace IngameScript
         }
 
         // step 9
-        public void UndockShip()
+        void UndockShip()
         {
-            skipIfWaypointWithoutDock();
+            SkipIfWaypointWithoutDock();
 
             DockingConnector.Disconnect();
             DockingConnector.PullStrength = 0;
@@ -557,34 +566,24 @@ namespace IngameScript
         }
 
         // step 10
-        public void MoveAwayFromDock()
+        void MoveAwayFromDock()
         {
-            skipIfWaypointWithoutDock();
+            SkipIfWaypointWithoutDock();
 
-            MyBlockOrientation connectorOrientation = DockingConnector.Orientation;
             var thrusters = new List<IMyThrust>();
-            GridTerminalSystem.GetBlocksOfType(thrusters);
-            var connectorThrusters = new List<IMyThrust>();
-            foreach (IMyThrust thrust in thrusters)
-            {
-                if (thrust.Orientation.Forward == connectorOrientation.Forward)
-                {
-                    connectorThrusters.Add(thrust);
-                }
-            }
-            
+            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
             double currentSpeed = RemoteControl.GetShipSpeed();
             double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
             if (distanceFromDock < SafeDistanceFromDock && currentSpeed < 5)
             {
-                connectorThrusters.ForEach(thrust =>
+                thrusters.ForEach(thrust =>
                 {
                     thrust.ThrustOverridePercentage += 0.1f;
                 });
             }
             else if (distanceFromDock > SafeDistanceFromDock)
             {
-                connectorThrusters.ForEach(thrust => {
+                thrusters.ForEach(thrust => {
                     thrust.ThrustOverridePercentage = 0;
                 });
                 processStep++;
@@ -592,75 +591,7 @@ namespace IngameScript
             
         }
 
-        public void skipOnTimeout(int seconds)
-        {
-            if (currentCycleStartTime - previousStepEndTime > new TimeSpan(0, 0, seconds))
-            {
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-        }
-
-        public void skipIfDocked()
-        {
-            // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Connected 
-                || DockingConnector.Status == MyShipConnectorStatus.Connectable)
-            {
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-        }
-
-        public void skipIfUndocked()
-        {
-            // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Unconnected)
-            {
-                previousStepEndTime = DateTime.Now;
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-        }
-
-        public void skipIfWaypointWithoutDock()
-        {
-            if (!currentWaypoint.HasDock)
-            {
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-        }
-
-        
-
         #endregion
-
-        /// <summary>
-        /// Checks if the terminal is null, gone from world, or broken off from grid.
-        /// </summary>
-        /// <param name="block">The block<see cref="T"/>.</param>
-        /// <returns>The <see cref="bool"/>.</returns>
-        bool IsCorrupt(IMyTerminalBlock block)
-        {
-            bool isCorrupt = block == null || block.WorldMatrix == MatrixD.Identity 
-                || !(GridTerminalSystem.GetBlockWithId(block.EntityId) == block);
-
-            return isCorrupt;
-        }
-
-        /// <summary>
-        /// Checks if the current call has exceeded the maximum execution limit.
-        /// If it has, then it will raise a <see cref="PutOffExecutionException:T"/>.
-        /// </summary>
-        /// <returns>True.</returns>
-        /// <remarks>This methods returns true by default to allow use in the while check.</remarks>
-        bool DoExecutionLimitCheck()
-        {
-            if (ExecutionTime > MAX_RUN_TIME || ExecutionLoad > MAX_LOAD)
-                throw new PutOffExecutionException();
-            return true;
-        }
 
     }
 }

@@ -26,6 +26,10 @@ namespace IngameScript
     abstract class Terminal<T> where T : class, IMyTerminalBlock
     {
         /// <summary>
+        /// Log for Terminal class
+        /// </summary>
+        public Action<string> EchoR = text => { };
+        /// <summary>
         /// Defines the program.
         /// </summary>
         protected Program program;
@@ -47,6 +51,7 @@ namespace IngameScript
         public Terminal(Program program)
         {
             this.program = program;
+            //this.EchoR = program.EchoR;
         }
 
         /// <summary>
@@ -60,7 +65,7 @@ namespace IngameScript
         /// <returns>The <see cref="bool"/>.</returns>
         public bool Run()
         {
-            program.EchoR(string.Format("Collected #{1} {0} ", this.GetType().Name, list.Count, listIndex));
+            EchoR(string.Format("Collected #{1} {0} ", this.GetType().Name, list.Count, listIndex));
             if (listIndex < list.Count)
             {
 
@@ -69,7 +74,7 @@ namespace IngameScript
 
                 if (!IsCorrupt(list[listIndex]))
                 {
-                    program.EchoR(string.Format("Cycling block #{0}", listIndex));
+                    EchoR(string.Format("Cycling block #{0}", listIndex));
                     OnCycle(list[listIndex]);
                 }
                 else
@@ -85,7 +90,7 @@ namespace IngameScript
 
                 if (listUpdate % 30 == 0)
                 {
-                    program.EchoR("Updating collection");
+                    EchoR("Updating collection");
                     program.GridTerminalSystem.GetBlocksOfType(list, Collect);
                     listUpdate = 0;
                 }
@@ -113,7 +118,7 @@ namespace IngameScript
         /// <param name="terminal">The terminal<see cref="T"/>.</param>
         public virtual void OnCycle(T terminal)
         {
-            program.EchoR(string.Format("Cycling on {0}", terminal.CustomName));
+            EchoR(string.Format("Cycling on {0}", terminal.CustomName));
         }
 
         /// <summary>

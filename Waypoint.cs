@@ -19,35 +19,38 @@ using VRageMath;
 
 namespace IngameScript
 {
-    class Waypoint
+    partial class Program : MyGridProgram
     {
-
-        public string Name { get; }
-
-        public Vector3D Coords { get; }
-
-        public bool HasDock { get; }
-
-        public Waypoint(string name, Vector3D coords, bool hasDock)
+        class Waypoint
         {
-            this.Coords = coords;
-            this.HasDock = hasDock;
-            this.Name = name;
-        }
 
-        public Waypoint(string waypointData)
-        {
-            //GPS: WAYPOINT 1:227004.83:227029.62:227020.38:
-            MyWaypointInfo waypointInfo;
-            if (MyWaypointInfo.TryParse(waypointData, out waypointInfo))
+            public string Name { get; }
+
+            public Vector3D Coords { get; }
+
+            public bool HasDock { get; }
+
+            public Waypoint(string name, Vector3D coords, bool hasDock)
             {
-                this.Name = waypointInfo.Name;
-                this.Coords = waypointInfo.Coords;
-                this.HasDock = true;
+                this.Coords = coords;
+                this.HasDock = hasDock;
+                this.Name = name;
             }
-            else
+
+            public Waypoint(string waypointData)
             {
-                throw new PutOffExecutionException();
+                //GPS: WAYPOINT 1:227004.83:227029.62:227020.38:
+                MyWaypointInfo waypointInfo;
+                if (MyWaypointInfo.TryParse(waypointData, out waypointInfo))
+                {
+                    this.Name = waypointInfo.Name;
+                    this.Coords = waypointInfo.Coords;
+                    this.HasDock = true;
+                }
+                else
+                {
+                    throw new PutOffExecutionException();
+                }
             }
         }
     }

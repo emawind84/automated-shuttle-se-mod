@@ -20,7 +20,7 @@ using VRageMath;
 namespace IngameScript
 {
 
-    static class Utils
+    partial class Program : MyGridProgram
     {
         public static float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
         {
@@ -33,11 +33,51 @@ namespace IngameScript
 
             return totalCurrentCapacity / totalMaxCapacity;
         }
-    }
 
-    /// <summary>
-    /// Thrown when we detect that we have taken up too much processing time
-    /// and need to put off the rest of the exection until the next call.
-    /// </summary>
-    class PutOffExecutionException : Exception { }
+        /// <summary>
+        /// Checks if the terminal is null, gone from world, or broken off from grid.
+        /// </summary>
+        /// <param name="block">The block<see cref="T"/>.</param>
+        /// <returns>The <see cref="bool"/>.</returns>
+        bool IsCorrupt(IMyTerminalBlock block)
+        {
+            bool isCorrupt = block == null || block.WorldMatrix == MatrixD.Identity
+                || !(GridTerminalSystem.GetBlockWithId(block.EntityId) == block);
+
+            return isCorrupt;
+        }
+
+        void ZeroThrust()
+        {
+            var thrusters = new List<IMyThrust>();
+            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
+            thrusters.ForEach(thruster => thruster.ThrustOverridePercentage = 0);
+        }
+
+        void ResetBatteryMode()
+        {
+            var batteries = new List<IMyBatteryBlock>();
+            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
+            batteries.ForEach(battery => battery.ChargeMode = ChargeMode.Auto);
+        }
+
+        /// <summary>
+        /// Checks if the current call has exceeded the maximum execution limit.
+        /// If it has, then it will raise a <see cref="PutOffExecutionException:T"/>.
+        /// </summary>
+        /// <returns>True.</returns>
+        /// <remarks>This methods returns true by default to allow use in the while check.</remarks>
+        bool DoExecutionLimitCheck()
+        {
+            if (ExecutionTime > MAX_RUN_TIME || ExecutionLoad > MAX_LOAD)
+                throw new PutOffExecutionException();
+            return true;
+        }
+
+        /// <summary>
+        /// Thrown when we detect that we have taken up too much processing time
+        /// and need to put off the rest of the exection until the next call.
+        /// </summary>
+        class PutOffExecutionException : Exception { }
+    }
 }
