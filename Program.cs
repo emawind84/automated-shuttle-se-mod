@@ -25,29 +25,42 @@ namespace IngameScript
         /// <summary>
         /// Safe distance from dock before going to next waypoint
         /// </summary>
-        const int SafeDistanceFromDock = 30;
-
+        const int SafeDistanceFromDock = 20;
+        /// <summary>
+        /// The maximum battery capacity to reach during recharging
+        /// </summary>
+        const float MaxBatteryCapacity = 0.95f;
+        /// <summary>
+        /// The minimum battery capacity to operate the ship.
+        /// If the capacity go down this level the batteries will start recharging if the ship is docked
+        /// </summary>
+        const float MinBatteryCapacity = 0.5f;
+        /// <summary>
+        /// How long the ship will remain at the waypoint
+        /// </summary>
+        TimeSpan parkingPeriodAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
         /// <summary>
         /// whether to use real time (second between calls) or pure UpdateFrequency
         /// for update frequency
         /// </summary>
-        readonly bool USE_REAL_TIME = true;
-
+        readonly bool USE_REAL_TIME = false;
         /// <summary>
         /// Defines the FREQUENCY.
         /// </summary>
-        const UpdateFrequency FREQUENCY = UpdateFrequency.Update10;
-
+        const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
         /// <summary>
         /// How often the script should update in milliseconds
         /// </summary>
         const int UPDATE_REAL_TIME = 1000;
-        // The maximum run time of the script per call.
-        // Measured in milliseconds.
+        /// <summary>
+        /// The maximum run time of the script per call.
+        /// Measured in milliseconds.
+        /// </summary>
         const double MAX_RUN_TIME = 35;
-
-        // The maximum percent load that this script will allow
-        // regardless of how long it has been executing.
+        /// <summary>
+        /// The maximum percent load that this script will allow
+        /// regardless of how long it has been executing.
+        /// </summary> 
         const double MAX_LOAD = 0.8;
 
         public MyIni _ini = new MyIni();
@@ -60,6 +73,7 @@ namespace IngameScript
 
         #region Script state & storage
 
+        /// <summary>
         /// The time we started the last cycle at.
         /// If <see cref="USE_REAL_TIME"/> is <c>true</c>, then it is also used to track
         /// when the script should next update
@@ -69,10 +83,6 @@ namespace IngameScript
         /// The time the previous step ended
         /// </summary>
         DateTime previousStepEndTime;
-        /// <summary>
-        /// How long the ship will remain at the waypoint
-        /// </summary>
-        TimeSpan maxWaitTimeAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
         /// <summary>
         /// The time to wait before starting the next cycle.
         /// Only used if <see cref="USE_REAL_TIME"/> is <c>true</c>.
@@ -223,7 +233,7 @@ namespace IngameScript
                 Echo(log);
             };
 
-            RetrieveCustomData();
+            RetrieveCustomSetting();
             RetrieveStorage();
 
             displayTerminals = new DisplayTerminal(this);
@@ -232,18 +242,19 @@ namespace IngameScript
             // initialise the process steps we will need to do
             processSteps = new Action[]
             {
-                ResetControl,
-                FindNextWaypoint,  // 0
-                GoToWaypoint,      // 1
-                TravelToWaypoint,  // 2
-                DockToStation,     // 3
-                WaitDocking,       // 4
-                DoAfterDocking,    // 5
-                RechargeBatteries, // 6
-                WaitAtStation,     // 7
-                DoBeforeUndocking, // 8
-                UndockShip,        // 9
-                MoveAwayFromDock   // 10
+                ResetControl,            // 0
+                FindNextWaypoint,        // 1
+                DoBeforeUndocking,       // 2
+                UndockShip,              // 3
+                MoveAwayFromDock,        // 4
+                ResetOverrideThruster,   // 5
+                GoToWaypoint,            // 6
+                TravelToWaypoint,        // 7
+                DockToStation,           // 8
+                WaitDockingCompletion,   // 9
+                DoAfterDocking,          // 10
+                RechargeBatteries,       // 11
+                WaitAtWaypoint,          // 12
             };
 
             Runtime.UpdateFrequency = FREQUENCY;
@@ -257,43 +268,6 @@ namespace IngameScript
         public void Save()
         {
             Storage = currentWaypoint.Name;
-        }
-
-        private void RetrieveStorage()
-        {
-            var currentWaypointName = Storage;
-            if (currentWaypointName != null)
-            {
-                currentWaypoint = waypoints.Find(waypoint => waypoint.Name == currentWaypointName);
-            }
-        }
-
-        private void RetrieveCustomData()
-        {
-            // init settings
-            _ini.TryParse(Me.CustomData);
-
-            string customDataWaypoints = _ini.Get("shuttle", "waypoints").ToString();
-            if (customDataWaypoints != "")
-            {
-                string[] _waypoints = customDataWaypoints.Split(',');
-                for (int i = 0; i < _waypoints.Count(); i++)
-                {
-                    waypoints.Add(new Waypoint(_waypoints[i]));
-                }
-            }
-        }
-
-        /// <summary>
-        /// The SetTerminalCycle.
-        /// </summary>
-        /// <returns>The <see cref="IEnumerator{bool}"/>.</returns>
-        IEnumerator<bool> SetTerminalCycle()
-        {
-            while (true)
-            {
-                yield return displayTerminals.Run();
-            }
         }
 
         public void Main(string argument, UpdateType updateSource)
@@ -327,9 +301,6 @@ namespace IngameScript
             try
             {
                 processSteps[processStep]();
-                EchoR(string.Format("Registered waypoints: #{0}", waypoints.Count()));
-                EchoR(string.Format("Next waypoint: {0}", currentWaypoint.Name));
-                //EchoR(string.Format("Battery capacity: {0}%", RemainingBatteryCapacity() * 100));
             }
             catch (PutOffExecutionException) { }
             catch (Exception ex)
@@ -349,6 +320,9 @@ namespace IngameScript
                 previousStepEndTime = DateTime.Now;
             }
 
+            EchoR(string.Format("Registered waypoints: #{0}", waypoints.Count()));
+            EchoR(string.Format("Next waypoint: {0}", currentWaypoint?.Name ?? "NA"));
+
             string stepText;
             int theoryProcessStep = processStep == 0 ? processSteps.Count() : processStep;
             int exTime = ExecutionTime;
@@ -367,6 +341,7 @@ namespace IngameScript
             if (!terminalCycle.MoveNext())
             {
                 terminalCycle.Dispose();
+                EchoR(string.Format("Disposed terminalCycle, current idx: {0}", terminalCycle.Current));
             }
         }
 
@@ -374,13 +349,18 @@ namespace IngameScript
 
         void ResetControl()
         {
+            var cockpits = new List<IMyCockpit>();
+            GridTerminalSystem.GetBlocksOfType(cockpits);
+            cockpits.ForEach(cockpit => {
+                cockpit.ControlThrusters = true;
+            });
+
             ResetBatteryMode();
             ZeroThrust();
             
             processStep++;
         }
 
-        // step 0
         void FindNextWaypoint()
         {
             if (waypoints.Count() == 0)
@@ -408,7 +388,67 @@ namespace IngameScript
             processStep++;
         }
 
-        // step 1
+        void DoBeforeUndocking()
+        {
+            lastDockedPosition = RemoteControl.GetPosition();
+
+            /*
+            var doors = new List<IMyDoor>();
+            GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
+            doors.ForEach(door => {
+                door.CloseDoor();
+                door.Enabled = false;
+            });
+            */
+
+            var timerBlocks = new List<IMyTimerBlock>();
+            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:beforeundocking"));
+            timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
+
+            processStep++;
+        }
+
+        void UndockShip()
+        {
+            DockingConnector.Disconnect();
+            DockingConnector.PullStrength = 0;
+
+            if (DockingConnector.Status != MyShipConnectorStatus.Connected)
+            {
+                processStep++;
+            }
+        }
+
+        void MoveAwayFromDock()
+        {
+            SkipIfNoGridNearby();
+
+            var thrusters = new List<IMyThrust>();
+            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
+            double currentSpeed = RemoteControl.GetShipSpeed();
+            double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
+
+            if (distanceFromDock < SafeDistanceFromDock && currentSpeed < 5)
+            {
+                thrusters.ForEach(thrust =>
+                {
+                    thrust.ThrustOverridePercentage += 0.1f;
+                });
+            }
+            else if (distanceFromDock > SafeDistanceFromDock)
+            {
+                processStep++;
+            }
+
+        }
+
+        void ResetOverrideThruster()
+        {
+            ZeroThrust();
+
+            processStep++;
+        }
+
         void GoToWaypoint() {
             SkipIfDocked();
 
@@ -416,7 +456,7 @@ namespace IngameScript
             controlBlock.SetCollisionAvoidance(true);
             controlBlock.FlightMode = FlightMode.OneWay;
             controlBlock.SetDockingMode(false);
-            if (currentWaypoint.HasDock) controlBlock.SetDockingMode(true);
+            if (currentWaypoint.WaitAtWaypoint) controlBlock.SetDockingMode(true);
 
             Vector3 controlBlockPosition = controlBlock.GetPosition();
             float distanceToWaypoint = Vector3.Distance(controlBlockPosition, currentWaypoint.Coords);
@@ -429,7 +469,6 @@ namespace IngameScript
             processStep++;
         }
 
-        // step 2
         void TravelToWaypoint() {
             SkipIfDocked();
 
@@ -439,11 +478,9 @@ namespace IngameScript
             }
         }
 
-        // step 3
         void DockToStation()
         {
             SkipIfDocked();
-            SkipIfWaypointWithoutDock();
 
             // start docking
             List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
@@ -459,10 +496,9 @@ namespace IngameScript
             processStep++;
         }
 
-        // step 4
-        void WaitDocking() {
+        void WaitDockingCompletion() {
+            SkipIfNoGridNearby();
             SkipOnTimeout(30);
-            SkipIfWaypointWithoutDock();
 
             if (DockingConnector.Status == MyShipConnectorStatus.Connectable 
                 || DockingConnector.Status == MyShipConnectorStatus.Connected) {
@@ -471,29 +507,31 @@ namespace IngameScript
             }
         }
 
-        // step 5
         void DoAfterDocking()
         {
-            SkipIfUndocked();
-
-            var doors = new List<IMyDoor>();
+            SkipIfNoGridNearby();
+            
+            /*var doors = new List<IMyDoor>();
             GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
             doors.ForEach(door => {
                 //door.OpenDoor();
                 door.Enabled = true;
-            });
+            });*/
+
+            var timerBlocks = new List<IMyTimerBlock>();
+            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:afterdocking"));
+            timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
 
             processStep++;
         }
 
-        // step 6
         void RechargeBatteries()
         {
             SkipIfUndocked();
-
+            
             var batteries = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
-            EchoR(string.Format("Found #{0} batteries", batteries.Count()));
+            //EchoR(string.Format("Found #{0} batteries", batteries.Count()));
             if (batteries.Count() == 0)
             {
                 processStep++;
@@ -502,7 +540,8 @@ namespace IngameScript
 
             float remainingCapacity = RemainingBatteryCapacity(batteries);
             
-            if (remainingCapacity < 0.6 || (remainingCapacity < 0.9 && lowBatteryCapacityDetected))
+            if (remainingCapacity < MinBatteryCapacity 
+                || (remainingCapacity < MaxBatteryCapacity && lowBatteryCapacityDetected))
             {
                 EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
                 lowBatteryCapacityDetected = true;
@@ -514,7 +553,6 @@ namespace IngameScript
                     }
                     else
                     {
-                        EchoR("" + battery.CustomName);
                         battery.ChargeMode = ChargeMode.Recharge;
                     }
                 });
@@ -530,66 +568,16 @@ namespace IngameScript
             }
         }
 
-        // step 7
-        void WaitAtStation()
+        void WaitAtWaypoint()
         {
+            SkipIfNoGridNearby();
             DateTime n = DateTime.Now;
-            if (n - previousStepEndTime >= maxWaitTimeAtWaypoint)
+            if (n - previousStepEndTime >= parkingPeriodAtWaypoint)
             {
                 processStep++;
             }
         }
-
-        // step 8
-        void DoBeforeUndocking()
-        {
-            lastDockedPosition = RemoteControl.GetPosition();
-            var doors = new List<IMyDoor>();
-            GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
-            doors.ForEach(door => {
-                door.CloseDoor();
-                door.Enabled = false;
-            });
-
-            processStep++;
-        }
-
-        // step 9
-        void UndockShip()
-        {
-            SkipIfWaypointWithoutDock();
-
-            DockingConnector.Disconnect();
-            DockingConnector.PullStrength = 0;
-
-            processStep++;
-        }
-
-        // step 10
-        void MoveAwayFromDock()
-        {
-            SkipIfWaypointWithoutDock();
-
-            var thrusters = new List<IMyThrust>();
-            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
-            double currentSpeed = RemoteControl.GetShipSpeed();
-            double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
-            if (distanceFromDock < SafeDistanceFromDock && currentSpeed < 5)
-            {
-                thrusters.ForEach(thrust =>
-                {
-                    thrust.ThrustOverridePercentage += 0.1f;
-                });
-            }
-            else if (distanceFromDock > SafeDistanceFromDock)
-            {
-                thrusters.ForEach(thrust => {
-                    thrust.ThrustOverridePercentage = 0;
-                });
-                processStep++;
-            }
-            
-        }
+        
 
         #endregion
 

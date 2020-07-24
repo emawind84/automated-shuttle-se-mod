@@ -28,12 +28,12 @@ namespace IngameScript
 
             public Vector3D Coords { get; }
 
-            public bool HasDock { get; }
+            public bool WaitAtWaypoint { get; }
 
-            public Waypoint(string name, Vector3D coords, bool hasDock)
+            public Waypoint(string name, Vector3D coords, bool waitAtWaypoint)
             {
                 this.Coords = coords;
-                this.HasDock = hasDock;
+                this.WaitAtWaypoint = waitAtWaypoint;
                 this.Name = name;
             }
 
@@ -45,7 +45,7 @@ namespace IngameScript
                 {
                     this.Name = waypointInfo.Name;
                     this.Coords = waypointInfo.Coords;
-                    this.HasDock = true;
+                    this.WaitAtWaypoint = !waypointData.Contains(":nowait");
                 }
                 else
                 {

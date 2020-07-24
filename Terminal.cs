@@ -65,12 +65,10 @@ namespace IngameScript
         /// <returns>The <see cref="bool"/>.</returns>
         public bool Run()
         {
-            EchoR(string.Format("Collected #{1} {0} ", this.GetType().Name, list.Count, listIndex));
-            if (listIndex < list.Count)
+            if (!IsListEmpty)
             {
-
-                if (IsListEmpty)
-                    return true;
+                listIndex = listIndex % list.Count;
+                EchoR(string.Format("Collected #{1} {0} ", this.GetType().Name, list.Count, listIndex));
 
                 if (!IsCorrupt(list[listIndex]))
                 {
@@ -81,23 +79,17 @@ namespace IngameScript
                 {
                     list.Remove(list[listIndex]);
                 }
-
                 listIndex++;
-
             }
-            else
+
+            if (listUpdate % 10 == 0)
             {
-
-                if (listUpdate % 30 == 0)
-                {
-                    EchoR("Updating collection");
-                    program.GridTerminalSystem.GetBlocksOfType(list, Collect);
-                    listUpdate = 0;
-                }
-
-                listUpdate++;
-                listIndex = 0;
+                EchoR("Updating collection");
+                program.GridTerminalSystem.GetBlocksOfType(list, Collect);
+                listUpdate = 0;
             }
+
+            listUpdate++;
 
             return true;
         }
