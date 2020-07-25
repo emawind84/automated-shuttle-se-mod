@@ -21,37 +21,117 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
+        class Step : IEnumerator<bool>
+        {
+            readonly Func<IEnumerator<bool>> stepFunction;
+
+            protected IEnumerator<bool> stepExecutor;
+
+            /// <summary>
+            /// Defines the program.
+            /// </summary>
+            protected Program program;
+
+            public Step(Program program, Func<IEnumerator<bool>> stepFunc)
+            {
+                stepFunction = stepFunc;
+                stepExecutor = stepFunction();
+                this.program = program;
+            }
+
+            public bool Current { get; set; }
+
+            object IEnumerator.Current => Current;
+
+            public bool MoveNext()
+            {
+                bool hasMoreSteps = false;
+                try
+                {
+                    hasMoreSteps = stepExecutor.MoveNext();
+                    Current = stepExecutor.Current;
+                } catch (PutOffExecutionException)
+                {
+                }
+
+                if (!hasMoreSteps)
+                {
+                    stepExecutor.Dispose();
+                    stepExecutor = stepFunction();
+
+                    program.processStep++;
+                }
+
+                return hasMoreSteps;
+            }
+
+            public void Reset()
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Dispose()
+            {
+                throw new NotSupportedException();
+            }
+
+        }
+
         #region Process Steps
 
         /// <summary>
         /// The SetTerminalCycle.
         /// </summary>
         /// <returns>The <see cref="IEnumerator{bool}"/>.</returns>
-        /*IEnumerator<int> ProcessCycle()
+        IEnumerator<bool> ProcessCycle()
         {
+            var processSteps = new List<Step>()
+            {
+                new Step(this, ResetControl),
+                new Step(this, FindNextWaypoint),
+                new Step(this, DoBeforeUndocking)
+            };
+
+            EchoR("##### start of ProcessCycle");
+
             while (true)
             {
-                yield return ResetControl();
-                yield return FindNextWaypoint();
+                foreach (var step in processSteps)
+                {
+                    while (step.MoveNext()) yield return true;
+                }
+                //foreach (int i in DoBeforeUndocking()) { yield return i; }
+                //foreach (int i in UndockShip()) { yield return i; }
+                //foreach (int i in MoveAwayFromDock()) { yield return i; }
+                //foreach (int i in ResetOverrideThruster()) { yield return i; }
+                //foreach (int i in GoToWaypoint()) { yield return i; }
+                //foreach (int i in TravelToWaypoint()) { yield return i; }
+                //foreach (int i in DockToStation()) { yield return i; }
+                //foreach (int i in WaitDockingCompletion()) { yield return i; }
+                //foreach (int i in DoAfterDocking()) { yield return i; }
+                //foreach (int i in RechargeBatteries()) { yield return i; }
+                //foreach (int i in WaitAtWaypoint()) { yield return i; }
             }
-        }*/
+        }
 
-        void ResetControl()
+        IEnumerator<bool> ResetControl()
         {
+            yield return true;
             var cockpits = new List<IMyCockpit>();
             GridTerminalSystem.GetBlocksOfType(cockpits);
+            yield return true;
             cockpits.ForEach(cockpit => {
                 cockpit.ControlThrusters = true;
             });
-
+            yield return true;
             ResetBatteryMode();
+            yield return true;
             ZeroThrust();
-
-            processStep++;
         }
 
-        void FindNextWaypoint()
+        IEnumerator<bool> FindNextWaypoint()
         {
+            yield return true;
             if (waypoints.Count() == 0)
             {
                 EchoR("No waypoint defined");
@@ -73,12 +153,11 @@ namespace IngameScript
                 }
 
             }
-
-            processStep++;
         }
 
-        void DoBeforeUndocking()
+        IEnumerator<bool> DoBeforeUndocking()
         {
+            yield return true;
             lastDockedPosition = RemoteControl.GetPosition();
 
             /*
@@ -93,22 +172,20 @@ namespace IngameScript
             var timerBlocks = new List<IMyTimerBlock>();
             GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:beforeundocking"));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
-
-            processStep++;
         }
 
-        void UndockShip()
+        IEnumerable<int> UndockShip()
         {
             DockingConnector.Disconnect();
             DockingConnector.PullStrength = 0;
 
             if (DockingConnector.Status != MyShipConnectorStatus.Connected)
             {
-                processStep++;
+                yield return processStep++;
             }
         }
 
-        void MoveAwayFromDock()
+        IEnumerable<int> MoveAwayFromDock()
         {
             SkipIfNoGridNearby();
 
@@ -126,19 +203,19 @@ namespace IngameScript
             }
             else if (distanceFromDock > SafeDistanceFromDock)
             {
-                processStep++;
+                yield return processStep++;
             }
 
         }
 
-        void ResetOverrideThruster()
+        IEnumerable<int> ResetOverrideThruster()
         {
             ZeroThrust();
 
-            processStep++;
+            yield return processStep++;
         }
 
-        void GoToWaypoint()
+        IEnumerable<int> GoToWaypoint()
         {
             SkipIfDocked();
 
@@ -157,21 +234,21 @@ namespace IngameScript
                 controlBlock.SetAutoPilotEnabled(true);
             }
 
-            processStep++;
+            yield return processStep++;
         }
 
-        void TravelToWaypoint()
+        IEnumerable<int> TravelToWaypoint()
         {
             SkipIfDocked();
 
             double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, Me.GetPosition());
             if (Math.Round(RemoteControl.GetShipSpeed(), 0) == 0 && distanceFromWaypoint < 100)
             {
-                processStep++;
+                yield return processStep++;
             }
         }
 
-        void DockToStation()
+        IEnumerable<int> DockToStation()
         {
             SkipIfDocked();
 
@@ -184,13 +261,13 @@ namespace IngameScript
                 processStep++;
                 throw new PutOffExecutionException();
             }
-            if (programmableBlock.IsRunning) { return; }
+            if (programmableBlock.IsRunning) { yield break; }
             programmableBlock.TryRun(currentWaypoint.Name);
 
-            processStep++;
+            yield return processStep++;
         }
 
-        void WaitDockingCompletion()
+        IEnumerable<int> WaitDockingCompletion()
         {
             SkipIfNoGridNearby();
             SkipOnTimeout(30);
@@ -199,11 +276,11 @@ namespace IngameScript
                 || DockingConnector.Status == MyShipConnectorStatus.Connected)
             {
 
-                processStep++;
+                yield return processStep++;
             }
         }
 
-        void DoAfterDocking()
+        IEnumerable<int> DoAfterDocking()
         {
             SkipIfNoGridNearby();
 
@@ -218,10 +295,10 @@ namespace IngameScript
             GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:afterdocking"));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
 
-            processStep++;
+            yield return processStep++;
         }
 
-        void RechargeBatteries()
+        IEnumerable<int> RechargeBatteries()
         {
             SkipIfUndocked();
 
@@ -231,7 +308,7 @@ namespace IngameScript
             if (batteries.Count() == 0)
             {
                 processStep++;
-                throw new PutOffExecutionException();
+                yield break;
             }
 
             float remainingCapacity = RemainingBatteryCapacity(batteries);
@@ -260,17 +337,17 @@ namespace IngameScript
                     battery.ChargeMode = ChargeMode.Auto;
                 });
 
-                processStep++;
+                yield return processStep++;
             }
         }
 
-        void WaitAtWaypoint()
+        IEnumerable<int> WaitAtWaypoint()
         {
             SkipIfNoGridNearby();
             DateTime n = DateTime.Now;
             if (n - previousStepEndTime >= parkingPeriodAtWaypoint)
             {
-                processStep++;
+                yield return processStep++;
             }
         }
 

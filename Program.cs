@@ -47,7 +47,7 @@ namespace IngameScript
         /// <summary>
         /// Defines the FREQUENCY.
         /// </summary>
-        const UpdateFrequency FREQUENCY = UpdateFrequency.Update10;
+        const UpdateFrequency FREQUENCY = UpdateFrequency.Once;
         /// <summary>
         /// How often the script should update in milliseconds
         /// </summary>
@@ -99,10 +99,6 @@ namespace IngameScript
         /// </summary>
         int processStep;
         /// <summary>
-        /// All of the process steps that TIM will need to take,
-        /// </summary>
-        readonly Action[] processSteps;
-        /// <summary>
         /// Stores the output of Echo so we can effectively ignore some calls
         /// without overwriting it.
         /// </summary>
@@ -132,6 +128,8 @@ namespace IngameScript
         /// Defines the terminalCycle.
         /// </summary>
         IEnumerator<bool> terminalCycle;
+
+        IEnumerator<bool> processCycle;
 
         DisplayTerminal displayTerminals;
 
@@ -237,9 +235,10 @@ namespace IngameScript
 
             displayTerminals = new DisplayTerminal(this);
             terminalCycle = SetTerminalCycle();
+            processCycle = ProcessCycle();
 
             // initialise the process steps we will need to do
-            processSteps = new Action[]
+            /*processSteps = new Action[]
             {
                 ResetControl,                // 0
                 FindNextWaypoint,            // 1
@@ -254,7 +253,7 @@ namespace IngameScript
                 DoAfterDocking,              // 10
                 RechargeBatteries,           // 11
                 WaitAtWaypoint,              // 12
-            };
+            };*/
 
             Runtime.UpdateFrequency = FREQUENCY;
 
@@ -288,21 +287,21 @@ namespace IngameScript
             }
 
             echoOutput.Clear();
-            if (processStep == processSteps.Count())
+            if (processStep == processSteps)
             {
                 processStep = 0;
             }
             int processStepTmp = processStep;
+            bool didAtLeastOneProcess = false;
 
             // output terminal info
             EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
 
             try
             {
-                processSteps[processStep]();
-                //ProcessCycle().MoveNext();
+                processCycle.MoveNext();
             }
-            catch (PutOffExecutionException) { }
+            catch (PutOffExecutionException) {}
             catch (Exception ex)
             {
                 // if the process step threw an exception, make sure we print the info
@@ -319,16 +318,17 @@ namespace IngameScript
             {
                 lastDockedPosition = RemoteControl.GetPosition();
                 previousStepEndTime = DateTime.Now;
+                didAtLeastOneProcess = true;
             }
 
             EchoR(string.Format("Registered waypoints: #{0}", waypoints.Count()));
             EchoR(string.Format("Next waypoint: {0}", currentWaypoint?.Name ?? "NA"));
 
             string stepText;
-            int theoryProcessStep = processStep == 0 ? processSteps.Count() : processStep;
+            int theoryProcessStep = processStep == 0 ? processSteps : processStep;
             int exTime = ExecutionTime;
             double exLoad = Math.Round(100.0f * ExecutionLoad, 1);
-            if (processStep == 0 && processStepTmp == 0)
+            if (processStep == 0 && processStepTmp == 0 && didAtLeastOneProcess)
                 stepText = "all steps";
             else if (processStep == processStepTmp)
                 stepText = string.Format("step {0} partially", processStep);
