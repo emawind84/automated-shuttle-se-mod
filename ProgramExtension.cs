@@ -66,7 +66,7 @@ namespace IngameScript
 
         void SkipIfNoGridNearby()
         {
-            if (!HasShipGridsNearby())
+            if (!IsGridNearby())
             {
                 EchoR("Skipping: no grids nearby");
                 processStep++;
@@ -74,20 +74,32 @@ namespace IngameScript
             }
         }
 
-        bool HasShipGridsNearby()
+        bool IsGridNearby()
         {
+            double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
             bool gridDetected = false;
             var sensors = new List<IMySensorBlock>();
             GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, block => MyIni.HasSection(block.CustomData, "shuttle"));
             var sensor = sensors.Find(block => block.IsFunctional);
             if (sensor != null)
             {
+                if (distanceFromDock > sensor.MaxRange / 2)
+                {
+                    // the ship already moved from the waypoint and the grid detection might not be attendible
+                    return true;
+                }
                 //sensor.Enabled = true;
                 sensor.DetectFriendly = true;
                 sensor.DetectOwner = true;
                 sensor.DetectStations = true;
                 sensor.DetectLargeShips = true;
                 sensor.DetectSubgrids = true;
+                sensor.RightExtend = 50;
+                sensor.LeftExtend = 50;
+                sensor.FrontExtend = 50;
+                sensor.BackExtend = 50;
+                sensor.BottomExtend = 50;
+                sensor.TopExtend = 50;
                 var entities = new List<MyDetectedEntityInfo>();
                 sensor.DetectedEntities(entities);
                 foreach (MyDetectedEntityInfo entity in entities)
@@ -141,6 +153,46 @@ namespace IngameScript
             {
                 yield return displayTerminals.Run();
             }
+        }
+
+        /// <summary>
+        /// Checks if the terminal is null, gone from world, or broken off from grid.
+        /// </summary>
+        /// <param name="block">The block<see cref="T"/>.</param>
+        /// <returns>The <see cref="bool"/>.</returns>
+        bool IsCorrupt(IMyTerminalBlock block)
+        {
+            bool isCorrupt = block == null || block.WorldMatrix == MatrixD.Identity
+                || !(GridTerminalSystem.GetBlockWithId(block.EntityId) == block);
+
+            return isCorrupt;
+        }
+
+        void ZeroThrust()
+        {
+            var thrusters = new List<IMyThrust>();
+            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
+            thrusters.ForEach(thruster => thruster.ThrustOverridePercentage = 0);
+        }
+
+        void ResetBatteryMode()
+        {
+            var batteries = new List<IMyBatteryBlock>();
+            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
+            batteries.ForEach(battery => battery.ChargeMode = ChargeMode.Auto);
+        }
+
+        /// <summary>
+        /// Checks if the current call has exceeded the maximum execution limit.
+        /// If it has, then it will raise a <see cref="PutOffExecutionException:T"/>.
+        /// </summary>
+        /// <returns>True.</returns>
+        /// <remarks>This methods returns true by default to allow use in the while check.</remarks>
+        bool DoExecutionLimitCheck()
+        {
+            if (ExecutionTime > MAX_RUN_TIME || ExecutionLoad > MAX_LOAD)
+                throw new PutOffExecutionException();
+            return true;
         }
     }
 }

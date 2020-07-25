@@ -24,7 +24,7 @@ namespace IngameScript
     /// </summary>
     class DisplayTerminal : Terminal<IMyTerminalBlock>
     {
-
+        
         /// <summary>
         /// Initializes a new instance of the <see cref="DisplayTerminal"/> class.
         /// </summary>
@@ -68,8 +68,7 @@ namespace IngameScript
             bool isDebugLCD = terminal.IsSameConstructAs(program.Me)
                 && MyIni.HasSection(terminal.CustomData, "shuttle")
                 && (terminal is IMyTextPanel || terminal is IMyTextSurfaceProvider)
-                && terminal.IsWorking
-                && terminal != program.Me;
+                && terminal.IsWorking;
 
             return isDebugLCD;
         }

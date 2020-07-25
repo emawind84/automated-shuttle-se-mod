@@ -47,7 +47,7 @@ namespace IngameScript
         /// <summary>
         /// Defines the FREQUENCY.
         /// </summary>
-        const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
+        const UpdateFrequency FREQUENCY = UpdateFrequency.Update10;
         /// <summary>
         /// How often the script should update in milliseconds
         /// </summary>
@@ -62,9 +62,6 @@ namespace IngameScript
         /// regardless of how long it has been executing.
         /// </summary> 
         const double MAX_LOAD = 0.8;
-
-        public MyIni _ini = new MyIni();
-
         /// <summary>
         /// A wrapper for the <see cref="Echo"/> function that adds the log to the stored log.
         /// This allows the log to be remembered and re-outputted without extra work.
@@ -73,6 +70,7 @@ namespace IngameScript
 
         #region Script state & storage
 
+        public MyIni _ini = new MyIni();
         /// <summary>
         /// The time we started the last cycle at.
         /// If <see cref="USE_REAL_TIME"/> is <c>true</c>, then it is also used to track
@@ -95,7 +93,7 @@ namespace IngameScript
         /// <summary>
         /// The text to echo at the start of each call.
         /// </summary>
-        string timUpdateText;
+        string scriptUpdateText;
         /// <summary>
         /// The current step in the TIM process cycle.
         /// </summary>
@@ -197,17 +195,18 @@ namespace IngameScript
                 return dockingConnector;
             }
         }
-        
+
         #endregion
 
         #region Version
 
+        const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 1;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 0;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-07-20";
+        const string VERSION_UPDATE = "2020-07-24";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>
@@ -220,7 +219,7 @@ namespace IngameScript
         /// <summary>
         /// The format for the text to echo at the start of each call.
         /// </summary>
-        const string FORMAT_UPDATE_TEXT = "Automated Shuttle\n{0}\nLast run: #{{0}} at {{1}}";
+        const string FORMAT_UPDATE_TEXT = "{0}\n{1}\nLast run: #{{0}} at {{1}}";
 
         #endregion
 
@@ -242,27 +241,27 @@ namespace IngameScript
             // initialise the process steps we will need to do
             processSteps = new Action[]
             {
-                ResetControl,            // 0
-                FindNextWaypoint,        // 1
-                DoBeforeUndocking,       // 2
-                UndockShip,              // 3
-                MoveAwayFromDock,        // 4
-                ResetOverrideThruster,   // 5
-                GoToWaypoint,            // 6
-                TravelToWaypoint,        // 7
-                DockToStation,           // 8
-                WaitDockingCompletion,   // 9
-                DoAfterDocking,          // 10
-                RechargeBatteries,       // 11
-                WaitAtWaypoint,          // 12
+                ResetControl,                // 0
+                FindNextWaypoint,            // 1
+                DoBeforeUndocking,           // 2
+                UndockShip,                  // 3
+                MoveAwayFromDock,            // 4  // block during docking (connector connected)
+                ResetOverrideThruster,       // 5
+                GoToWaypoint,                // 6
+                TravelToWaypoint,            // 7
+                DockToStation,               // 8
+                WaitDockingCompletion,       // 9
+                DoAfterDocking,              // 10
+                RechargeBatteries,           // 11
+                WaitAtWaypoint,              // 12
             };
 
             Runtime.UpdateFrequency = FREQUENCY;
 
-            EchoR("Compiled Automated Shuttle " + VERSION_NICE_TEXT);
+            EchoR(string.Format("Compiled {0} {1}", SCRIPT_NAME, VERSION_NICE_TEXT));
 
             // format terminal info text
-            timUpdateText = string.Format(FORMAT_UPDATE_TEXT, VERSION_NICE_TEXT);
+            scriptUpdateText = string.Format(FORMAT_UPDATE_TEXT, SCRIPT_NAME, VERSION_NICE_TEXT);
         }
 
         public void Save()
@@ -296,11 +295,12 @@ namespace IngameScript
             int processStepTmp = processStep;
 
             // output terminal info
-            EchoR(string.Format(timUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
+            EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
 
             try
             {
                 processSteps[processStep]();
+                //ProcessCycle().MoveNext();
             }
             catch (PutOffExecutionException) { }
             catch (Exception ex)
@@ -314,9 +314,10 @@ namespace IngameScript
                 throw ex;
             }
 
+            // step completed
             if (processStep != processStepTmp)
             {
-                // the step ended we set the step end date
+                lastDockedPosition = RemoteControl.GetPosition();
                 previousStepEndTime = DateTime.Now;
             }
 
@@ -341,245 +342,8 @@ namespace IngameScript
             if (!terminalCycle.MoveNext())
             {
                 terminalCycle.Dispose();
-                EchoR(string.Format("Disposed terminalCycle, current idx: {0}", terminalCycle.Current));
-            }
-        }
-
-        #region Process Steps
-
-        void ResetControl()
-        {
-            var cockpits = new List<IMyCockpit>();
-            GridTerminalSystem.GetBlocksOfType(cockpits);
-            cockpits.ForEach(cockpit => {
-                cockpit.ControlThrusters = true;
-            });
-
-            ResetBatteryMode();
-            ZeroThrust();
-            
-            processStep++;
-        }
-
-        void FindNextWaypoint()
-        {
-            if (waypoints.Count() == 0)
-            {
-                EchoR("No waypoint defined");
-                throw new PutOffExecutionException();
-            }
-            if (currentWaypoint == null)
-            {
-                currentWaypoint = waypoints.First();
-            }
-            else
-            {
-                double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, Me.GetPosition());
-                
-                if (distanceFromWaypoint < 100)
-                {
-                    int totalWaypoints = waypoints.Count();
-                    int index = waypoints.FindIndex(wp => wp.Name == currentWaypoint.Name);
-                    currentWaypoint = waypoints[(index + 1) % totalWaypoints];
-                }
-                
-            }
-
-            processStep++;
-        }
-
-        void DoBeforeUndocking()
-        {
-            lastDockedPosition = RemoteControl.GetPosition();
-
-            /*
-            var doors = new List<IMyDoor>();
-            GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
-            doors.ForEach(door => {
-                door.CloseDoor();
-                door.Enabled = false;
-            });
-            */
-
-            var timerBlocks = new List<IMyTimerBlock>();
-            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:beforeundocking"));
-            timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
-
-            processStep++;
-        }
-
-        void UndockShip()
-        {
-            DockingConnector.Disconnect();
-            DockingConnector.PullStrength = 0;
-
-            if (DockingConnector.Status != MyShipConnectorStatus.Connected)
-            {
-                processStep++;
-            }
-        }
-
-        void MoveAwayFromDock()
-        {
-            SkipIfNoGridNearby();
-
-            var thrusters = new List<IMyThrust>();
-            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
-            double currentSpeed = RemoteControl.GetShipSpeed();
-            double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
-
-            if (distanceFromDock < SafeDistanceFromDock && currentSpeed < 5)
-            {
-                thrusters.ForEach(thrust =>
-                {
-                    thrust.ThrustOverridePercentage += 0.1f;
-                });
-            }
-            else if (distanceFromDock > SafeDistanceFromDock)
-            {
-                processStep++;
-            }
-
-        }
-
-        void ResetOverrideThruster()
-        {
-            ZeroThrust();
-
-            processStep++;
-        }
-
-        void GoToWaypoint() {
-            SkipIfDocked();
-
-            IMyRemoteControl controlBlock = RemoteControl;
-            controlBlock.SetCollisionAvoidance(true);
-            controlBlock.FlightMode = FlightMode.OneWay;
-            controlBlock.SetDockingMode(false);
-            if (currentWaypoint.WaitAtWaypoint) controlBlock.SetDockingMode(true);
-
-            Vector3 controlBlockPosition = controlBlock.GetPosition();
-            float distanceToWaypoint = Vector3.Distance(controlBlockPosition, currentWaypoint.Coords);
-            if (distanceToWaypoint > 50) {
-                controlBlock.ClearWaypoints();
-                controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
-                controlBlock.SetAutoPilotEnabled(true);
-            }
-
-            processStep++;
-        }
-
-        void TravelToWaypoint() {
-            SkipIfDocked();
-
-            double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, Me.GetPosition());
-            if (Math.Round(RemoteControl.GetShipSpeed(), 0) == 0 && distanceFromWaypoint < 100) {
-                processStep++;
-            }
-        }
-
-        void DockToStation()
-        {
-            SkipIfDocked();
-
-            // start docking
-            List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
-            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, "shuttle:docking"));
-            IMyProgrammableBlock programmableBlock = blocks.Find(block => block.IsFunctional & block.IsWorking);
-            if (programmableBlock == null) {
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-            if (programmableBlock.IsRunning) { return; }
-            programmableBlock.TryRun(currentWaypoint.Name);
-
-            processStep++;
-        }
-
-        void WaitDockingCompletion() {
-            SkipIfNoGridNearby();
-            SkipOnTimeout(30);
-
-            if (DockingConnector.Status == MyShipConnectorStatus.Connectable 
-                || DockingConnector.Status == MyShipConnectorStatus.Connected) {
-
-                processStep++;
-            }
-        }
-
-        void DoAfterDocking()
-        {
-            SkipIfNoGridNearby();
-            
-            /*var doors = new List<IMyDoor>();
-            GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
-            doors.ForEach(door => {
-                //door.OpenDoor();
-                door.Enabled = true;
-            });*/
-
-            var timerBlocks = new List<IMyTimerBlock>();
-            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:afterdocking"));
-            timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
-
-            processStep++;
-        }
-
-        void RechargeBatteries()
-        {
-            SkipIfUndocked();
-            
-            var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
-            //EchoR(string.Format("Found #{0} batteries", batteries.Count()));
-            if (batteries.Count() == 0)
-            {
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-
-            float remainingCapacity = RemainingBatteryCapacity(batteries);
-            
-            if (remainingCapacity < MinBatteryCapacity 
-                || (remainingCapacity < MaxBatteryCapacity && lowBatteryCapacityDetected))
-            {
-                EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
-                lowBatteryCapacityDetected = true;
-                
-                batteries.ForEach(battery => {
-                    if (!battery.IsCharging)
-                    {
-                        battery.ChargeMode = ChargeMode.Auto;
-                    }
-                    else
-                    {
-                        battery.ChargeMode = ChargeMode.Recharge;
-                    }
-                });
-            }
-            else
-            {
-                lowBatteryCapacityDetected = false;
-                batteries.ForEach(battery => {
-                    battery.ChargeMode = ChargeMode.Auto;
-                });
-
-                processStep++;
-            }
-        }
-
-        void WaitAtWaypoint()
-        {
-            SkipIfNoGridNearby();
-            DateTime n = DateTime.Now;
-            if (n - previousStepEndTime >= parkingPeriodAtWaypoint)
-            {
-                processStep++;
             }
         }
         
-
-        #endregion
-
     }
 }

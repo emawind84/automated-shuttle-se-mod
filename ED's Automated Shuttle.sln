@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.1169
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEShuttle", "SEShuttle.csproj", "{0DCBC405-4471-4FF2-A704-E168DA19FB7C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ED's Automated Shuttle", "ED's Automated Shuttle.csproj", "{0DCBC405-4471-4FF2-A704-E168DA19FB7C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
