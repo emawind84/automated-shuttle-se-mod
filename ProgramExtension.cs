@@ -66,7 +66,9 @@ namespace IngameScript
 
         void SkipIfNoGridNearby()
         {
-            if (!IsGridNearby())
+            if (Sensor == null) return;
+
+            if (!IsLargeGridNearby())
             {
                 EchoR("Skipping: no grids nearby");
                 processStep++;
@@ -74,48 +76,45 @@ namespace IngameScript
             }
         }
 
-        bool IsGridNearby()
+        void PrepareSensor()
         {
-            double distanceFromDock = Vector3D.Distance(lastShipPosition, Me.GetPosition());
-            bool gridDetected = false;
-            var sensors = new List<IMySensorBlock>();
-            GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, block => MyIni.HasSection(block.CustomData, "shuttle"));
-            var sensor = sensors.Find(block => block.IsFunctional && block.IsWorking);
-            if (sensor != null)
+            if (Sensor != null)
             {
-                if (distanceFromDock > sensor.MaxRange / 2)
-                {
-                    // the ship already moved from the waypoint and the grid detection might not be attendible
-                    return true;
-                }
-                //sensor.Enabled = true;
-                sensor.DetectFriendly = true;
-                sensor.DetectOwner = true;
-                sensor.DetectStations = true;
-                sensor.DetectLargeShips = true;
-                sensor.DetectSubgrids = true;
-                sensor.RightExtend = 50;
-                sensor.LeftExtend = 50;
-                sensor.FrontExtend = 50;
-                sensor.BackExtend = 50;
-                sensor.BottomExtend = 50;
-                sensor.TopExtend = 50;
-                var entities = new List<MyDetectedEntityInfo>();
-                sensor.DetectedEntities(entities);
-                foreach (MyDetectedEntityInfo entity in entities)
-                {
-                    if (entity.Type == MyDetectedEntityType.LargeGrid)
-                    {
-                        gridDetected = true;
-                    }
-                }
-                //sensor.Enabled = false;
+                Sensor.Enabled = true;
+                Sensor.DetectFriendly = true;
+                Sensor.DetectOwner = true;
+                Sensor.DetectStations = true;
+                Sensor.DetectLargeShips = true;
+                Sensor.DetectSubgrids = true;
+                Sensor.RightExtend = 50;
+                Sensor.LeftExtend = 50;
+                Sensor.FrontExtend = 50;
+                Sensor.BackExtend = 50;
+                Sensor.BottomExtend = 50;
+                Sensor.TopExtend = 50;
             }
-            else
+        }
+
+        List<MyDetectedEntityInfo> FindDetectedGrids()
+        {
+            double distanceFromLastPosition = Vector3D.Distance(lastShipPosition, Me.GetPosition());
+            var entities = new List<MyDetectedEntityInfo>();
+
+            if (Sensor != null)
             {
-                gridDetected = true;
+                if (distanceFromLastPosition < Sensor.MaxRange / 2)
+                {
+                    Sensor.DetectedEntities(entities);
+                }
+                
             }
-            return gridDetected;
+            return entities;
+        }
+
+        bool IsLargeGridNearby()
+        {
+            var entities = FindDetectedGrids().FindAll(grid => grid.Type == MyDetectedEntityType.LargeGrid);
+            return entities.Count() > 0;
         }
 
         void RetrieveStorage()
@@ -195,6 +194,16 @@ namespace IngameScript
             return true;
         }
 
+        void Start()
+        {
+            Runtime.UpdateFrequency = FREQUENCY;
+        }
+
+        void Stop()
+        {
+            Runtime.UpdateFrequency = UpdateFrequency.None;
+        }
+
         void Shutdown()
         {
             ZeroThrustOverride();
@@ -209,6 +218,29 @@ namespace IngameScript
         {
             processStep = 0;
             EchoR("System reset");
+        }
+
+        void Test()
+        {
+            var entities = FindDetectedGrids().FindAll(grid => grid.Type == MyDetectedEntityType.LargeGrid);
+            EchoR(string.Format("Found #{0} entities", entities.Count()));
+
+            foreach (var entity in entities)
+            {
+                EchoR(string.Format("position {0}", entity.Position));
+                EchoR(string.Format("Distance from ship: {0}m", Vector3D.Distance(lastShipPosition, entity.Position)));
+
+                var dir = Vector3D.Normalize(entity.Position - DockingConnector.GetPosition());
+                var dot = Vector3D.Dot(dir, DockingConnector.WorldMatrix.Forward);
+                var radians = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
+                var degrees = MathHelper.ToDegrees(radians);
+                EchoR("dot: " + dot);
+                EchoR("grad: " + degrees);
+
+                // between 90 - 180 obstructed
+            }
+
+            Runtime.UpdateFrequency = UpdateFrequency.None;
         }
     }
 }

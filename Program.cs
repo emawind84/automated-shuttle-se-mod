@@ -130,11 +130,14 @@ namespace IngameScript
         /// <summary>
         /// The remote control block to use for the operations
         /// </summary>
-        IMyRemoteControl remoteControl;
+        IMyRemoteControl _remoteControl;
         /// <summary>
         /// The connector to use for docking
         /// </summary>
-        IMyShipConnector dockingConnector;
+        IMyShipConnector _dockingConnector;
+
+        IMySensorBlock _sensor;
+
         /// <summary>
         /// The ship position recorded after each step
         /// </summary>
@@ -172,19 +175,19 @@ namespace IngameScript
         {
             get
             {
-                if (IsCorrupt(remoteControl))
+                if (IsCorrupt(_remoteControl))
                 {
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
                     GridTerminalSystem.GetBlocksOfType(blocks);
-                    remoteControl = blocks.Find(block => block.IsFunctional & block.IsWorking);
+                    _remoteControl = blocks.Find(block => block.IsFunctional & block.IsWorking);
                 }
                 
-                if (remoteControl == null)
+                if (_remoteControl == null)
                 {
                     EchoR("No working remote control found on the ship.");
                     throw new PutOffExecutionException();
                 }
-                return remoteControl;
+                return _remoteControl;
             }
         }
 
@@ -192,19 +195,38 @@ namespace IngameScript
         {
             get
             {
-                if (IsCorrupt(dockingConnector))
+                if (IsCorrupt(_dockingConnector))
                 {
                     List<IMyShipConnector> blocks = new List<IMyShipConnector>();
                     GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-                    dockingConnector = blocks.Find(block => block.IsFunctional & block.IsWorking);
+                    _dockingConnector = blocks.Find(block => block.IsFunctional & block.IsWorking);
                 }
 
-                if (dockingConnector == null)
+                if (_dockingConnector == null)
                 {
                     EchoR("No working connector found on the ship.");
                     throw new PutOffExecutionException();
                 }
-                return dockingConnector;
+                return _dockingConnector;
+            }
+        }
+
+        public IMySensorBlock Sensor
+        {
+            get
+            {
+                if (IsCorrupt(_sensor))
+                {
+                    var sensors = new List<IMySensorBlock>();
+                    GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag));
+                    _sensor = sensors.Find(block => block.IsFunctional);
+                }
+
+                if (_sensor == null)
+                {
+                    EchoR("No sensor found on the ship.");
+                }
+                return _sensor;
             }
         }
 
@@ -246,6 +268,9 @@ namespace IngameScript
 
             _commands["shutdown"] = Shutdown;
             _commands["reset"] = Reset;
+            _commands["test"] = Test;
+            _commands["start"] = Start;
+            _commands["stop"] = Stop;
 
             RetrieveCustomSetting();
             RetrieveStorage();
@@ -273,7 +298,8 @@ namespace IngameScript
                 WaitAtWaypoint,              // 14
             };
 
-            Runtime.UpdateFrequency = FREQUENCY;
+            Runtime.UpdateFrequency = UpdateFrequency.None;
+            //Runtime.UpdateFrequency = FREQUENCY;
 
             EchoR(string.Format("Compiled {0} {1}", SCRIPT_NAME, VERSION_NICE_TEXT));
 
@@ -309,6 +335,12 @@ namespace IngameScript
             // output terminal info
             EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
 
+            if (processStep == processSteps.Count())
+            {
+                processStep = 0;
+            }
+            int processStepTmp = processStep;
+
             if (_commandLine.TryParse(argument))
             {
                 Action commandAction;
@@ -326,34 +358,29 @@ namespace IngameScript
                 {
                     // We have found a command. Invoke it.
                     commandAction();
-                    return;
                 }
                 else
                 {
                     Echo($"Unknown command {command}");
                 }
             }
-
-            if (processStep == processSteps.Count())
+            else
             {
-                processStep = 0;
-            }
-            int processStepTmp = processStep;
-
-            try
-            {
-                processSteps[processStep]();
-            }
-            catch (PutOffExecutionException) { }
-            catch (Exception ex)
-            {
-                // if the process step threw an exception, make sure we print the info
-                // we need to debug it
-                string err = "An error occured,\n" +
-                    "please give the following information to the developer:\n" +
-                    string.Format("Current step on error: {0}\n{1}", processStep, ex.ToString().Replace("\r", ""));
-                EchoR(err);
-                throw ex;
+                try
+                {
+                    processSteps[processStep]();
+                }
+                catch (PutOffExecutionException) { }
+                catch (Exception ex)
+                {
+                    // if the process step threw an exception, make sure we print the info
+                    // we need to debug it
+                    string err = "An error occured,\n" +
+                        "please give the following information to the developer:\n" +
+                        string.Format("Current step on error: {0}\n{1}", processStep, ex.ToString().Replace("\r", ""));
+                    EchoR(err);
+                    throw ex;
+                }
             }
 
             // we save last ship position and previous step completed time after every step
@@ -364,7 +391,7 @@ namespace IngameScript
             }
 
             EchoR(string.Format("Registered waypoints: #{0}", waypoints.Count()));
-            EchoR(string.Format("Next waypoint: {0}", currentWaypoint?.Name ?? "NA"));
+            EchoR(string.Format("Destination: {0}", currentWaypoint?.Name ?? "NA"));
 
             string stepText;
             int theoryProcessStep = processStep == 0 ? processSteps.Count() : processStep;

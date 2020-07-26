@@ -33,6 +33,7 @@ namespace IngameScript
 
             ResetBatteryMode();
             ZeroThrustOverride();
+            PrepareSensor();
 
             processStep++;
         }
@@ -129,7 +130,7 @@ namespace IngameScript
 
         void MoveAwayFromDock()
         {
-            SkipIfUndocked();
+            SkipIfNoGridNearby();
 
             var thrusters = new List<IMyThrust>();
             GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
