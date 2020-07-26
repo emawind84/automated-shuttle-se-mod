@@ -76,11 +76,11 @@ namespace IngameScript
 
         bool IsGridNearby()
         {
-            double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
+            double distanceFromDock = Vector3D.Distance(lastShipPosition, Me.GetPosition());
             bool gridDetected = false;
             var sensors = new List<IMySensorBlock>();
             GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, block => MyIni.HasSection(block.CustomData, "shuttle"));
-            var sensor = sensors.Find(block => block.IsFunctional);
+            var sensor = sensors.Find(block => block.IsFunctional && block.IsWorking);
             if (sensor != null)
             {
                 if (distanceFromDock > sensor.MaxRange / 2)
@@ -168,7 +168,7 @@ namespace IngameScript
             return isCorrupt;
         }
 
-        void ZeroThrust()
+        void ZeroThrustOverride()
         {
             var thrusters = new List<IMyThrust>();
             GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
@@ -193,6 +193,22 @@ namespace IngameScript
             if (ExecutionTime > MAX_RUN_TIME || ExecutionLoad > MAX_LOAD)
                 throw new PutOffExecutionException();
             return true;
+        }
+
+        void Shutdown()
+        {
+            ZeroThrustOverride();
+            EchoR("Reset thrust override");
+            ResetBatteryMode();
+            EchoR("Reset battery charge mode");
+            EchoR("System shut down");
+            Runtime.UpdateFrequency = UpdateFrequency.None;
+        }
+
+        void Reset()
+        {
+            processStep = 0;
+            EchoR("System reset");
         }
     }
 }

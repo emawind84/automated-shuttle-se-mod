@@ -47,7 +47,7 @@ namespace IngameScript
         /// <summary>
         /// Defines the FREQUENCY.
         /// </summary>
-        const UpdateFrequency FREQUENCY = UpdateFrequency.Update10;
+        const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
         /// <summary>
         /// How often the script should update in milliseconds
         /// </summary>
@@ -69,8 +69,18 @@ namespace IngameScript
         public Action<string> EchoR;
 
         #region Script state & storage
-
+        /// <summary>
+        /// Handle Custom Data settings
+        /// </summary>
         public MyIni _ini = new MyIni();
+        /// <summary>
+        /// Handle script arguments
+        /// </summary>
+        MyCommandLine _commandLine = new MyCommandLine();
+        /// <summary>
+        /// A list of commands available to execute using script argument
+        /// </summary>
+        Dictionary<string, Action> _commands = new Dictionary<string, Action>(StringComparer.OrdinalIgnoreCase);
         /// <summary>
         /// The time we started the last cycle at.
         /// If <see cref="USE_REAL_TIME"/> is <c>true</c>, then it is also used to track
@@ -125,8 +135,10 @@ namespace IngameScript
         /// The connector to use for docking
         /// </summary>
         IMyShipConnector dockingConnector;
-
-        Vector3D lastDockedPosition = Vector3D.Zero;
+        /// <summary>
+        /// The ship position recorded after each step
+        /// </summary>
+        Vector3D lastShipPosition = Vector3D.Zero;
 
         /// <summary>
         /// Defines the terminalCycle.
@@ -232,6 +244,9 @@ namespace IngameScript
                 Echo(log);
             };
 
+            _commands["shutdown"] = Shutdown;
+            _commands["reset"] = Reset;
+
             RetrieveCustomSetting();
             RetrieveStorage();
 
@@ -242,17 +257,17 @@ namespace IngameScript
             processSteps = new Action[]
             {
                 ResetControl,                // 0
-                FindNextWaypoint,            // 1
-                DoBeforeUndocking,           // 2
-                UndockShip,                  // 3
-                MoveAwayFromDock,            // 4  // block during docking (connector connected)
-                ResetOverrideThruster,       // 5
-                GoToWaypoint,                // 6
-                TravelToWaypoint,            // 7
-                DockToStation,               // 8
-                WaitDockingCompletion,       // 9
-                DoAfterDocking,              // 10
-                RechargeBatteries,           // 11
+                RechargeBatteries,           // 1
+                FindNextWaypoint,            // 2
+                DoBeforeUndocking,           // 3
+                UndockShip,                  // 4
+                MoveAwayFromDock,            // 5  // block during docking (connector connected)
+                ResetThrustOverride,         // 6
+                GoToWaypoint,                // 7
+                TravelToWaypoint,            // 8
+                DockToStation,               // 9
+                WaitDockingCompletion,       // 10
+                DoAfterDocking,              // 11
                 WaitAtWaypoint,              // 12
             };
 
@@ -266,7 +281,7 @@ namespace IngameScript
 
         public void Save()
         {
-            Storage = currentWaypoint.Name;
+            Storage = currentWaypoint?.Name;
         }
 
         public void Main(string argument, UpdateType updateSource)
@@ -288,19 +303,44 @@ namespace IngameScript
             }
 
             echoOutput.Clear();
+
+            // output terminal info
+            EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
+
+            if (_commandLine.TryParse(argument))
+            {
+                Action commandAction;
+
+                // Retrieve the first argument. Switches are ignored.
+                string command = _commandLine.Argument(0);
+
+                // Now we must validate that the first argument is actually specified, 
+                // then attempt to find the matching command delegate.
+                if (command == null)
+                {
+                    Echo("No command specified");
+                }
+                else if (_commands.TryGetValue(command, out commandAction))
+                {
+                    // We have found a command. Invoke it.
+                    commandAction();
+                    return;
+                }
+                else
+                {
+                    Echo($"Unknown command {command}");
+                }
+            }
+
             if (processStep == processSteps.Count())
             {
                 processStep = 0;
             }
             int processStepTmp = processStep;
 
-            // output terminal info
-            EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
-
             try
             {
                 processSteps[processStep]();
-                //ProcessCycle().MoveNext();
             }
             catch (PutOffExecutionException) { }
             catch (Exception ex)
@@ -314,10 +354,10 @@ namespace IngameScript
                 throw ex;
             }
 
-            // step completed
+            // we save last ship position and previous step completed time after every step
             if (processStep != processStepTmp)
             {
-                lastDockedPosition = RemoteControl.GetPosition();
+                lastShipPosition = RemoteControl.GetPosition();
                 previousStepEndTime = DateTime.Now;
             }
 

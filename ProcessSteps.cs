@@ -23,19 +23,6 @@ namespace IngameScript
     {
         #region Process Steps
 
-        /// <summary>
-        /// The SetTerminalCycle.
-        /// </summary>
-        /// <returns>The <see cref="IEnumerator{bool}"/>.</returns>
-        /*IEnumerator<int> ProcessCycle()
-        {
-            while (true)
-            {
-                yield return ResetControl();
-                yield return FindNextWaypoint();
-            }
-        }*/
-
         void ResetControl()
         {
             var cockpits = new List<IMyCockpit>();
@@ -45,7 +32,7 @@ namespace IngameScript
             });
 
             ResetBatteryMode();
-            ZeroThrust();
+            ZeroThrustOverride();
 
             processStep++;
         }
@@ -77,19 +64,51 @@ namespace IngameScript
             processStep++;
         }
 
+        void RechargeBatteries()
+        {
+            SkipIfUndocked();
+
+            var batteries = new List<IMyBatteryBlock>();
+            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
+            //EchoR(string.Format("Found #{0} batteries", batteries.Count()));
+            if (batteries.Count() == 0)
+            {
+                processStep++;
+                throw new PutOffExecutionException();
+            }
+
+            float remainingCapacity = RemainingBatteryCapacity(batteries);
+
+            if (remainingCapacity < MinBatteryCapacity
+                || (remainingCapacity < MaxBatteryCapacity && lowBatteryCapacityDetected))
+            {
+                EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
+                lowBatteryCapacityDetected = true;
+
+                batteries.ForEach(battery => {
+                    if (!battery.IsCharging)
+                    {
+                        battery.ChargeMode = ChargeMode.Auto;
+                    }
+                    else
+                    {
+                        battery.ChargeMode = ChargeMode.Recharge;
+                    }
+                });
+            }
+            else
+            {
+                lowBatteryCapacityDetected = false;
+                batteries.ForEach(battery => {
+                    battery.ChargeMode = ChargeMode.Auto;
+                });
+
+                processStep++;
+            }
+        }
+
         void DoBeforeUndocking()
         {
-            lastDockedPosition = RemoteControl.GetPosition();
-
-            /*
-            var doors = new List<IMyDoor>();
-            GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
-            doors.ForEach(door => {
-                door.CloseDoor();
-                door.Enabled = false;
-            });
-            */
-
             var timerBlocks = new List<IMyTimerBlock>();
             GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:beforeundocking"));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
@@ -110,12 +129,12 @@ namespace IngameScript
 
         void MoveAwayFromDock()
         {
-            SkipIfNoGridNearby();
+            SkipIfUndocked();
 
             var thrusters = new List<IMyThrust>();
             GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
             double currentSpeed = RemoteControl.GetShipSpeed();
-            double distanceFromDock = Vector3D.Distance(lastDockedPosition, Me.GetPosition());
+            double distanceFromDock = Vector3D.Distance(lastShipPosition, Me.GetPosition());
 
             if (distanceFromDock < SafeDistanceFromDock && currentSpeed < 5)
             {
@@ -131,9 +150,9 @@ namespace IngameScript
 
         }
 
-        void ResetOverrideThruster()
+        void ResetThrustOverride()
         {
-            ZeroThrust();
+            ZeroThrustOverride();
 
             processStep++;
         }
@@ -207,61 +226,11 @@ namespace IngameScript
         {
             SkipIfNoGridNearby();
 
-            /*var doors = new List<IMyDoor>();
-            GridTerminalSystem.GetBlocksOfType(doors, door => MyIni.HasSection(door.CustomData, "shuttle"));
-            doors.ForEach(door => {
-                //door.OpenDoor();
-                door.Enabled = true;
-            });*/
-
             var timerBlocks = new List<IMyTimerBlock>();
             GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:afterdocking"));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
 
             processStep++;
-        }
-
-        void RechargeBatteries()
-        {
-            SkipIfUndocked();
-
-            var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
-            //EchoR(string.Format("Found #{0} batteries", batteries.Count()));
-            if (batteries.Count() == 0)
-            {
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-
-            float remainingCapacity = RemainingBatteryCapacity(batteries);
-
-            if (remainingCapacity < MinBatteryCapacity
-                || (remainingCapacity < MaxBatteryCapacity && lowBatteryCapacityDetected))
-            {
-                EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
-                lowBatteryCapacityDetected = true;
-
-                batteries.ForEach(battery => {
-                    if (!battery.IsCharging)
-                    {
-                        battery.ChargeMode = ChargeMode.Auto;
-                    }
-                    else
-                    {
-                        battery.ChargeMode = ChargeMode.Recharge;
-                    }
-                });
-            }
-            else
-            {
-                lowBatteryCapacityDetected = false;
-                batteries.ForEach(battery => {
-                    battery.ChargeMode = ChargeMode.Auto;
-                });
-
-                processStep++;
-            }
         }
 
         void WaitAtWaypoint()

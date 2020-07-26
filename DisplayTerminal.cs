@@ -42,10 +42,14 @@ namespace IngameScript
         {
             base.OnCycle(block);
 
+            MyIni ini = new MyIni();
+            ini.TryParse(block.CustomData);
+            var display = ini.Get("shuttle", "display").ToInt16();
+
             IMyTextSurface lcd;
             if (block is IMyTextSurfaceProvider)
             {
-                lcd = (block as IMyTextSurfaceProvider).GetSurface(0);
+                lcd = (block as IMyTextSurfaceProvider).GetSurface(display);
             }
             else
             {
