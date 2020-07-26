@@ -171,7 +171,7 @@ namespace IngameScript
         void ZeroThrustOverride()
         {
             var thrusters = new List<IMyThrust>();
-            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
+            GridTerminalSystem.GetBlocksOfType(thrusters);
             thrusters.ForEach(thruster => thruster.ThrustOverridePercentage = 0);
         }
 

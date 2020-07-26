@@ -179,6 +179,44 @@ namespace IngameScript
             processStep++;
         }
 
+        void DisableBroadcasting()
+        {
+            var beacons = new List<IMyBeacon>();
+            GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            foreach (IMyBeacon beacon in beacons)
+            {
+                beacon.Enabled = false;
+            }
+
+            var antennas = new List<IMyRadioAntenna>();
+            GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            foreach (var antenna in antennas)
+            {
+                antenna.Enabled = false;
+                antenna.EnableBroadcasting = false;
+            }
+            processStep++;
+        }
+
+        void EnableBroadcasting()
+        {
+            var beacons = new List<IMyBeacon>();
+            GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons);
+            foreach (IMyBeacon beacon in beacons)
+            {
+                beacon.Enabled = true;
+            }
+
+            var antennas = new List<IMyRadioAntenna>();
+            GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            foreach (var antenna in antennas)
+            {
+                antenna.Enabled = true;
+                antenna.EnableBroadcasting = true;
+            }
+            processStep++;
+        }
+
         void TravelToWaypoint()
         {
             SkipIfDocked();

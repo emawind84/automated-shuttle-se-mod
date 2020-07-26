@@ -21,7 +21,7 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-
+        const string ScriptPrefixTag = "SHUTTLE";
         /// <summary>
         /// Safe distance from dock before going to next waypoint
         /// </summary>
@@ -195,7 +195,7 @@ namespace IngameScript
                 if (IsCorrupt(dockingConnector))
                 {
                     List<IMyShipConnector> blocks = new List<IMyShipConnector>();
-                    GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, "shuttle"));
+                    GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
                     dockingConnector = blocks.Find(block => block.IsFunctional & block.IsWorking);
                 }
 
@@ -264,11 +264,13 @@ namespace IngameScript
                 MoveAwayFromDock,            // 5  // block during docking (connector connected)
                 ResetThrustOverride,         // 6
                 GoToWaypoint,                // 7
-                TravelToWaypoint,            // 8
-                DockToStation,               // 9
-                WaitDockingCompletion,       // 10
-                DoAfterDocking,              // 11
-                WaitAtWaypoint,              // 12
+                DisableBroadcasting,         // 8
+                TravelToWaypoint,            // 9
+                EnableBroadcasting,          // 10
+                DockToStation,               // 11
+                WaitDockingCompletion,       // 12
+                DoAfterDocking,              // 13
+                WaitAtWaypoint,              // 14
             };
 
             Runtime.UpdateFrequency = FREQUENCY;
