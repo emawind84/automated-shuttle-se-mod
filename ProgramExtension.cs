@@ -132,6 +132,9 @@ namespace IngameScript
             // init settings
             _ini.TryParse(Me.CustomData);
 
+            var parkingPeriodInSeconds = _ini.Get(ScriptPrefixTag, "parkingPeriod").ToInt16(10);
+            parkingPeriodAtWaypoint = new TimeSpan(0, 0, parkingPeriodInSeconds);
+
             string customDataWaypoints = _ini.Get(ScriptPrefixTag, "waypoints").ToString();
             if (customDataWaypoints != "")
             {
