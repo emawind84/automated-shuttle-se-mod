@@ -86,6 +86,7 @@ namespace IngameScript
                 Sensor.DetectStations = true;
                 Sensor.DetectLargeShips = true;
                 Sensor.DetectSubgrids = true;
+                Sensor.DetectPlayers = false;
                 Sensor.RightExtend = 50;
                 Sensor.LeftExtend = 50;
                 Sensor.FrontExtend = 50;
@@ -131,7 +132,7 @@ namespace IngameScript
             // init settings
             _ini.TryParse(Me.CustomData);
 
-            string customDataWaypoints = _ini.Get("shuttle", "waypoints").ToString();
+            string customDataWaypoints = _ini.Get(ScriptPrefixTag, "waypoints").ToString();
             if (customDataWaypoints != "")
             {
                 string[] _waypoints = customDataWaypoints.Split(',');
@@ -196,7 +197,7 @@ namespace IngameScript
         void ResetBatteryMode()
         {
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
+            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, ScriptPrefixTag));
             batteries.ForEach(battery => battery.ChargeMode = ChargeMode.Auto);
         }
 
