@@ -95,18 +95,18 @@ namespace IngameScript
             }
         }
 
+        void UpdateLastShipPosition()
+        {
+            lastShipPosition = ReferenceBlock.GetPosition();
+        }
+
         List<MyDetectedEntityInfo> FindDetectedGrids()
         {
-            double distanceFromLastPosition = Vector3D.Distance(lastShipPosition, Me.GetPosition());
             var entities = new List<MyDetectedEntityInfo>();
-
-            if (Sensor != null)
+            Sensor?.DetectedEntities(entities);
+            if (Sensor == null)
             {
-                if (distanceFromLastPosition < Sensor.MaxRange / 2)
-                {
-                    Sensor.DetectedEntities(entities);
-                }
-                
+                EchoR("No sensor registered");
             }
             return entities;
         }
@@ -167,6 +167,25 @@ namespace IngameScript
             return isCorrupt;
         }
 
+        bool IsObstructed(Vector3D directionalVector)
+        {
+            var entities = FindDetectedGrids();
+
+            foreach (var entity in entities)
+            {
+                var dir = Vector3D.Normalize(entity.Position - ReferenceBlock.GetPosition());
+                var dot = Vector3D.Dot(dir, Vector3D.Normalize(directionalVector));
+                var radians = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
+                var degrees = MathHelper.ToDegrees(radians);
+
+                if (degrees > 0 && degrees < 65)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         void ZeroThrustOverride()
         {
             var thrusters = new List<IMyThrust>();
@@ -220,25 +239,22 @@ namespace IngameScript
             EchoR("System reset");
         }
 
+        void ExecuteStep()
+        {
+            try
+            {
+                var step = int.Parse(_commandLine.Argument(1));
+                processStep = step;
+                processSteps[processStep]();
+                Runtime.UpdateFrequency = UpdateFrequency.None;
+            }
+            catch (PutOffExecutionException) { }
+        }
+
         void Test()
         {
-            var entities = FindDetectedGrids().FindAll(grid => grid.Type == MyDetectedEntityType.LargeGrid);
-            EchoR(string.Format("Found #{0} entities", entities.Count()));
 
-            foreach (var entity in entities)
-            {
-                EchoR(string.Format("position {0}", entity.Position));
-                EchoR(string.Format("Distance from ship: {0}m", Vector3D.Distance(lastShipPosition, entity.Position)));
-
-                var dir = Vector3D.Normalize(entity.Position - DockingConnector.GetPosition());
-                var dot = Vector3D.Dot(dir, DockingConnector.WorldMatrix.Forward);
-                var radians = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
-                var degrees = MathHelper.ToDegrees(radians);
-                EchoR("dot: " + dot);
-                EchoR("grad: " + degrees);
-
-                // between 90 - 180 obstructed
-            }
+            EchoR(string.Format("### {0}", ReferenceBlock.WorldMatrix.Up == (Vector3D.Zero - ReferenceBlock.WorldMatrix.Down)));
 
             Runtime.UpdateFrequency = UpdateFrequency.None;
         }

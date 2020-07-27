@@ -23,7 +23,7 @@ namespace IngameScript
     {
         #region Process Steps
 
-        void ResetControl()
+        void ProcessStepResetControl()
         {
             var cockpits = new List<IMyCockpit>();
             GridTerminalSystem.GetBlocksOfType(cockpits);
@@ -38,7 +38,7 @@ namespace IngameScript
             processStep++;
         }
 
-        void FindNextWaypoint()
+        void ProcessStepFindNextWaypoint()
         {
             if (waypoints.Count() == 0)
             {
@@ -51,7 +51,7 @@ namespace IngameScript
             }
             else
             {
-                double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, Me.GetPosition());
+                double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
 
                 if (distanceFromWaypoint < 100)
                 {
@@ -65,7 +65,7 @@ namespace IngameScript
             processStep++;
         }
 
-        void RechargeBatteries()
+        void ProcessStepRechargeBatteries()
         {
             SkipIfUndocked();
 
@@ -108,7 +108,7 @@ namespace IngameScript
             }
         }
 
-        void DoBeforeUndocking()
+        void ProcessStepDoBeforeUndocking()
         {
             var timerBlocks = new List<IMyTimerBlock>();
             GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:beforeundocking"));
@@ -117,7 +117,7 @@ namespace IngameScript
             processStep++;
         }
 
-        void UndockShip()
+        void ProcessStepUndockShip()
         {
             DockingConnector.Disconnect();
             DockingConnector.PullStrength = 0;
@@ -128,14 +128,43 @@ namespace IngameScript
             }
         }
 
-        void MoveAwayFromDock()
+        void ProcessStepMoveAwayFromDock()
         {
             SkipIfNoGridNearby();
-
+            
             var thrusters = new List<IMyThrust>();
-            GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.Orientation.Forward == DockingConnector.Orientation.Forward);
+            if (!IsObstructed(DockingConnector.WorldMatrix.Backward))
+            {
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Forward);
+            }
+            else if (!IsObstructed(DockingConnector.WorldMatrix.Forward))
+            {
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Backward);
+            }
+            else if (!IsObstructed(DockingConnector.WorldMatrix.Left))
+            {
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Right);
+            }
+            else if (!IsObstructed(DockingConnector.WorldMatrix.Right))
+            {
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Left);
+            }
+            else if (!IsObstructed(DockingConnector.WorldMatrix.Up))
+            {
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Down);
+            }
+            else if (!IsObstructed(DockingConnector.WorldMatrix.Down))
+            {
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Up);
+            }
+            else
+            {
+                EchoR("Ship is obstructed, waiting clearance");
+                throw new PutOffExecutionException();
+            }
+
             double currentSpeed = RemoteControl.GetShipSpeed();
-            double distanceFromDock = Vector3D.Distance(lastShipPosition, Me.GetPosition());
+            double distanceFromDock = Vector3D.Distance(lastShipPosition, ReferenceBlock.GetPosition());
 
             if (distanceFromDock < SafeDistanceFromDock && currentSpeed < 5)
             {
@@ -151,14 +180,14 @@ namespace IngameScript
 
         }
 
-        void ResetThrustOverride()
+        void ProcessStepResetThrustOverride()
         {
             ZeroThrustOverride();
 
             processStep++;
         }
 
-        void GoToWaypoint()
+        void ProcessStepGoToWaypoint()
         {
             SkipIfDocked();
 
@@ -168,8 +197,7 @@ namespace IngameScript
             controlBlock.SetDockingMode(false);
             if (currentWaypoint.WaitAtWaypoint) controlBlock.SetDockingMode(true);
 
-            Vector3 controlBlockPosition = controlBlock.GetPosition();
-            float distanceToWaypoint = Vector3.Distance(controlBlockPosition, currentWaypoint.Coords);
+            float distanceToWaypoint = Vector3.Distance(ReferenceBlock.GetPosition(), currentWaypoint.Coords);
             if (distanceToWaypoint > 50)
             {
                 controlBlock.ClearWaypoints();
@@ -180,7 +208,7 @@ namespace IngameScript
             processStep++;
         }
 
-        void DisableBroadcasting()
+        void ProcessStepDisableBroadcasting()
         {
             var beacons = new List<IMyBeacon>();
             GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
@@ -199,7 +227,7 @@ namespace IngameScript
             processStep++;
         }
 
-        void EnableBroadcasting()
+        void ProcessStepEnableBroadcasting()
         {
             var beacons = new List<IMyBeacon>();
             GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons);
@@ -218,18 +246,18 @@ namespace IngameScript
             processStep++;
         }
 
-        void TravelToWaypoint()
+        void ProcessStepTravelToWaypoint()
         {
             SkipIfDocked();
 
-            double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, Me.GetPosition());
+            double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
             if (Math.Round(RemoteControl.GetShipSpeed(), 0) == 0 && distanceFromWaypoint < 100)
             {
                 processStep++;
             }
         }
 
-        void DockToStation()
+        void ProcessStepDockToStation()
         {
             SkipIfDocked();
 
@@ -248,7 +276,7 @@ namespace IngameScript
             processStep++;
         }
 
-        void WaitDockingCompletion()
+        void ProcessStepWaitDockingCompletion()
         {
             SkipIfNoGridNearby();
             SkipOnTimeout(30);
@@ -261,7 +289,7 @@ namespace IngameScript
             }
         }
 
-        void DoAfterDocking()
+        void ProcessStepDoAfterDocking()
         {
             SkipIfNoGridNearby();
 
@@ -272,7 +300,7 @@ namespace IngameScript
             processStep++;
         }
 
-        void WaitAtWaypoint()
+        void ProcessStepWaitAtWaypoint()
         {
             SkipIfNoGridNearby();
             DateTime n = DateTime.Now;
@@ -280,6 +308,11 @@ namespace IngameScript
             {
                 processStep++;
             }
+        }
+
+        void ProcessStepWaitUndefinetely()
+        {
+            
         }
 
         #endregion

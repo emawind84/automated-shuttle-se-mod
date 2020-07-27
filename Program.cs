@@ -138,6 +138,8 @@ namespace IngameScript
 
         IMySensorBlock _sensor;
 
+        IMyTerminalBlock _referenceBlock;
+
         /// <summary>
         /// The ship position recorded after each step
         /// </summary>
@@ -230,6 +232,25 @@ namespace IngameScript
             }
         }
 
+        public IMyTerminalBlock ReferenceBlock
+        {
+            get
+            {
+                if (IsCorrupt(_referenceBlock))
+                {
+                    var blocks = new List<IMyTerminalBlock>();
+                    GridTerminalSystem.GetBlocksOfType(blocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":reference"));
+                    _referenceBlock = blocks.Find(blk => true);
+                }
+
+                if (_referenceBlock == null)
+                {
+                    _referenceBlock = RemoteControl;
+                }
+                return _referenceBlock;
+            }
+        }
+
         #endregion
 
         #region Version
@@ -271,9 +292,11 @@ namespace IngameScript
             _commands["test"] = Test;
             _commands["start"] = Start;
             _commands["stop"] = Stop;
+            _commands["step"] = ExecuteStep;
 
             RetrieveCustomSetting();
             RetrieveStorage();
+            UpdateLastShipPosition();
 
             displayTerminals = new DisplayTerminal(this);
             terminalCycle = SetTerminalCycle();
@@ -281,24 +304,31 @@ namespace IngameScript
             // initialise the process steps we will need to do
             processSteps = new Action[]
             {
-                ResetControl,                // 0
-                RechargeBatteries,           // 1
-                FindNextWaypoint,            // 2
-                DoBeforeUndocking,           // 3
-                UndockShip,                  // 4
-                MoveAwayFromDock,            // 5  // block during docking (connector connected)
-                ResetThrustOverride,         // 6
-                GoToWaypoint,                // 7
-                DisableBroadcasting,         // 8
-                TravelToWaypoint,            // 9
-                EnableBroadcasting,          // 10
-                DockToStation,               // 11
-                WaitDockingCompletion,       // 12
-                DoAfterDocking,              // 13
-                WaitAtWaypoint,              // 14
+                ProcessStepResetControl,                // 0
+                ProcessStepRechargeBatteries,           // 1
+                ProcessStepFindNextWaypoint,            // 2
+                ProcessStepDoBeforeUndocking,           // 3
+                ProcessStepUndockShip,                  // 4
+                ProcessStepMoveAwayFromDock,            // 5  // block during docking (connector connected)
+                ProcessStepResetThrustOverride,         // 6
+                ProcessStepGoToWaypoint,                // 7
+                ProcessStepDisableBroadcasting,         // 8
+                ProcessStepTravelToWaypoint,            // 9
+                ProcessStepEnableBroadcasting,          // 10
+                ProcessStepDockToStation,               // 11
+                ProcessStepWaitDockingCompletion,       // 12
+                ProcessStepDoAfterDocking,              // 13
+                ProcessStepWaitAtWaypoint,              // 14
             };
 
-            Runtime.UpdateFrequency = UpdateFrequency.None;
+            if (USE_REAL_TIME)
+            {
+                Runtime.UpdateFrequency = UpdateFrequency.Update1;
+            } else
+            {
+                Runtime.UpdateFrequency = FREQUENCY;
+            }
+            //Runtime.UpdateFrequency = UpdateFrequency.None;
             //Runtime.UpdateFrequency = FREQUENCY;
 
             EchoR(string.Format("Compiled {0} {1}", SCRIPT_NAME, VERSION_NICE_TEXT));
@@ -335,11 +365,12 @@ namespace IngameScript
             // output terminal info
             EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
 
-            if (processStep == processSteps.Count())
+            if (processStep == processSteps.Length)
             {
                 processStep = 0;
             }
             int processStepTmp = processStep;
+            bool didAtLeastOneProcess = false;
 
             if (_commandLine.TryParse(argument))
             {
@@ -369,6 +400,7 @@ namespace IngameScript
                 try
                 {
                     processSteps[processStep]();
+                    didAtLeastOneProcess = true;
                 }
                 catch (PutOffExecutionException) { }
                 catch (Exception ex)
@@ -386,7 +418,7 @@ namespace IngameScript
             // we save last ship position and previous step completed time after every step
             if (processStep != processStepTmp)
             {
-                lastShipPosition = RemoteControl.GetPosition();
+                UpdateLastShipPosition();
                 previousStepEndTime = DateTime.Now;
             }
 
@@ -397,7 +429,7 @@ namespace IngameScript
             int theoryProcessStep = processStep == 0 ? processSteps.Count() : processStep;
             int exTime = ExecutionTime;
             double exLoad = Math.Round(100.0f * ExecutionLoad, 1);
-            if (processStep == 0 && processStepTmp == 0)
+            if (processStep == 0 && processStepTmp == 0 && didAtLeastOneProcess)
                 stepText = "all steps";
             else if (processStep == processStepTmp)
                 stepText = string.Format("step {0} partially", processStep);
