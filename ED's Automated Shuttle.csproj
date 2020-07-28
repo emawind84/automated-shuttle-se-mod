@@ -39,6 +39,7 @@
   <Import Project="MDK/MDK.paths.props" Condition="exists('MDK/MDK.paths.props')" />
   <ItemGroup>
     <Compile Include="ProcessSteps.cs" />
+    <Compile Include="ProgramCommands.cs" />
     <Compile Include="ProgramExtension.cs" />
     <Compile Include="DisplayTerminal.cs" />
     <Compile Include="Terminal.cs" />

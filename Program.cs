@@ -317,18 +317,12 @@ namespace IngameScript
                 ProcessStepEnableBroadcasting,          // 10
                 ProcessStepDockToStation,               // 11
                 ProcessStepWaitDockingCompletion,       // 12
-                ProcessStepDoAfterDocking,              // 13
-                ProcessStepWaitAtWaypoint,              // 14
+                ProcessStepResetThrustOverride,         // 13
+                ProcessStepDoAfterDocking,              // 14
+                ProcessStepWaitAtWaypoint,              // 15
             };
 
-            if (USE_REAL_TIME)
-            {
-                Runtime.UpdateFrequency = UpdateFrequency.Update1;
-            } else
-            {
-                Runtime.UpdateFrequency = FREQUENCY;
-            }
-            //Runtime.UpdateFrequency = UpdateFrequency.None;
+            Runtime.UpdateFrequency = UpdateFrequency.None;
             //Runtime.UpdateFrequency = FREQUENCY;
 
             EchoR(string.Format("Compiled {0} {1}", SCRIPT_NAME, VERSION_NICE_TEXT));
@@ -365,13 +359,6 @@ namespace IngameScript
             // output terminal info
             EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
 
-            if (processStep == processSteps.Length)
-            {
-                processStep = 0;
-            }
-            int processStepTmp = processStep;
-            bool didAtLeastOneProcess = false;
-
             if (_commandLine.TryParse(argument))
             {
                 Action commandAction;
@@ -394,25 +381,32 @@ namespace IngameScript
                 {
                     Echo($"Unknown command {command}");
                 }
+
+                return;
             }
-            else
+
+            if (processStep == processSteps.Length)
             {
-                try
-                {
-                    processSteps[processStep]();
-                    didAtLeastOneProcess = true;
-                }
-                catch (PutOffExecutionException) { }
-                catch (Exception ex)
-                {
-                    // if the process step threw an exception, make sure we print the info
-                    // we need to debug it
-                    string err = "An error occured,\n" +
-                        "please give the following information to the developer:\n" +
-                        string.Format("Current step on error: {0}\n{1}", processStep, ex.ToString().Replace("\r", ""));
-                    EchoR(err);
-                    throw ex;
-                }
+                processStep = 0;
+            }
+            int processStepTmp = processStep;
+            bool didAtLeastOneProcess = false;
+
+            try
+            {
+                processSteps[processStep]();
+                didAtLeastOneProcess = true;
+            }
+            catch (PutOffExecutionException) { }
+            catch (Exception ex)
+            {
+                // if the process step threw an exception, make sure we print the info
+                // we need to debug it
+                string err = "An error occured,\n" +
+                    "please give the following information to the developer:\n" +
+                    string.Format("Current step on error: {0}\n{1}", processStep, ex.ToString().Replace("\r", ""));
+                EchoR(err);
+                throw ex;
             }
 
             // we save last ship position and previous step completed time after every step

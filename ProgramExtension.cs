@@ -76,6 +76,18 @@ namespace IngameScript
             }
         }
 
+        public delegate bool CollectBlocks(MyDetectedEntityInfo blk);
+
+        void SkipIfObstructed(Vector3D directionalVector, CollectBlocks collect = null)
+        {
+            if (IsObstructed(directionalVector, collect))
+            {
+                EchoR("Skipping: obstructed");
+                processStep++;
+                throw new PutOffExecutionException();
+            }
+        }
+
         void PrepareSensor()
         {
             if (Sensor != null)
@@ -167,9 +179,13 @@ namespace IngameScript
             return isCorrupt;
         }
 
-        bool IsObstructed(Vector3D directionalVector)
+        bool IsObstructed(Vector3D directionalVector, CollectBlocks collect = null)
         {
-            var entities = FindDetectedGrids();
+            if (collect == null)
+            {
+                collect = CollectAll;
+            }
+            var entities = FindDetectedGrids().FindAll(blk => collect(blk));
 
             foreach (var entity in entities)
             {
@@ -200,6 +216,12 @@ namespace IngameScript
             batteries.ForEach(battery => battery.ChargeMode = ChargeMode.Auto);
         }
 
+        void ResetAutopilot()
+        {
+            RemoteControl.ClearWaypoints();
+            RemoteControl.SetAutoPilotEnabled(false);
+        }
+
         /// <summary>
         /// Checks if the current call has exceeded the maximum execution limit.
         /// If it has, then it will raise a <see cref="PutOffExecutionException:T"/>.
@@ -213,50 +235,5 @@ namespace IngameScript
             return true;
         }
 
-        void Start()
-        {
-            Runtime.UpdateFrequency = FREQUENCY;
-        }
-
-        void Stop()
-        {
-            Runtime.UpdateFrequency = UpdateFrequency.None;
-        }
-
-        void Shutdown()
-        {
-            ZeroThrustOverride();
-            EchoR("Reset thrust override");
-            ResetBatteryMode();
-            EchoR("Reset battery charge mode");
-            EchoR("System shut down");
-            Runtime.UpdateFrequency = UpdateFrequency.None;
-        }
-
-        void Reset()
-        {
-            processStep = 0;
-            EchoR("System reset");
-        }
-
-        void ExecuteStep()
-        {
-            try
-            {
-                var step = int.Parse(_commandLine.Argument(1));
-                processStep = step;
-                processSteps[processStep]();
-                Runtime.UpdateFrequency = UpdateFrequency.None;
-            }
-            catch (PutOffExecutionException) { }
-        }
-
-        void Test()
-        {
-
-            EchoR(string.Format("### {0}", ReferenceBlock.WorldMatrix.Up == (Vector3D.Zero - ReferenceBlock.WorldMatrix.Down)));
-
-            Runtime.UpdateFrequency = UpdateFrequency.None;
-        }
     }
 }

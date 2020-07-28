@@ -22,7 +22,7 @@ namespace IngameScript
 
     partial class Program : MyGridProgram
     {
-        public static float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
+        static float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
         {
             float totalCurrentCapacity = 0; float totalMaxCapacity = 0;
             for (int i = 0; i < batteries.Count(); i++)
@@ -39,5 +39,16 @@ namespace IngameScript
         /// and need to put off the rest of the exection until the next call.
         /// </summary>
         class PutOffExecutionException : Exception { }
+
+        static bool CollectSmallGrid(MyDetectedEntityInfo blk)
+        {
+            return blk.Type == MyDetectedEntityType.SmallGrid;
+        }
+
+        static bool CollectAll(MyDetectedEntityInfo blk)
+        {
+            return true;
+        }
     }
+    
 }

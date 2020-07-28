@@ -32,6 +32,7 @@ namespace IngameScript
             });
 
             ResetBatteryMode();
+            ResetAutopilot();
             ZeroThrustOverride();
             PrepareSensor();
 
@@ -260,7 +261,7 @@ namespace IngameScript
         void ProcessStepDockToStation()
         {
             SkipIfDocked();
-
+            
             // start docking
             List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
             GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, "shuttle:docking"));
@@ -271,8 +272,14 @@ namespace IngameScript
                 throw new PutOffExecutionException();
             }
             if (programmableBlock.IsRunning) { return; }
-            programmableBlock.TryRun(currentWaypoint.Name);
 
+            if (IsObstructed(DockingConnector.WorldMatrix.Forward, CollectSmallGrid))
+            {
+                // wait until path is clear
+                throw new PutOffExecutionException();
+            }
+
+            programmableBlock.TryRun(currentWaypoint.Name);
             processStep++;
         }
 
@@ -280,7 +287,8 @@ namespace IngameScript
         {
             SkipIfNoGridNearby();
             SkipOnTimeout(30);
-
+            SkipIfObstructed(DockingConnector.WorldMatrix.Forward, CollectSmallGrid);
+            
             if (DockingConnector.Status == MyShipConnectorStatus.Connectable
                 || DockingConnector.Status == MyShipConnectorStatus.Connected)
             {
