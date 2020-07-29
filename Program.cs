@@ -320,6 +320,7 @@ namespace IngameScript
                 ProcessStepResetThrustOverride,         // 13
                 ProcessStepDoAfterDocking,              // 14
                 ProcessStepWaitAtWaypoint,              // 15
+                ProcessStepWaitUndefinetely
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;

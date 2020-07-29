@@ -71,14 +71,9 @@ namespace IngameScript
         /// </summary>
         void ExecuteStep()
         {
-            try
-            {
-                var step = int.Parse(_commandLine.Argument(1));
-                processStep = step;
-                processSteps[processStep]();
-                Runtime.UpdateFrequency = UpdateFrequency.None;
-            }
-            catch (PutOffExecutionException) { }
+            var step = int.Parse(_commandLine.Argument(1));
+            processStep = step;
+            Runtime.UpdateFrequency = UpdateFrequency.None;
         }
 
         void Test()
