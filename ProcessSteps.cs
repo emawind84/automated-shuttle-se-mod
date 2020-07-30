@@ -26,7 +26,7 @@ namespace IngameScript
         void ProcessStepResetControl()
         {
             var cockpits = new List<IMyCockpit>();
-            GridTerminalSystem.GetBlocksOfType(cockpits, CollectSameGrid);
+            GridTerminalSystem.GetBlocksOfType(cockpits, CollectSameConstruct);
             cockpits.ForEach(cockpit => {
                 cockpit.ControlThrusters = true;
             });

@@ -44,9 +44,9 @@ namespace IngameScript
             return true;
         }
 
-        bool CollectSameGrid(IMyTerminalBlock block)
+        bool CollectSameConstruct(IMyTerminalBlock block)
         {
-            return block.CubeGrid == Me.CubeGrid;
+            return block.IsSameConstructAs(Me);
         }
 
         /// <summary>

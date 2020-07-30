@@ -242,23 +242,50 @@ namespace IngameScript
 
         IEnumerator<bool> SetSubProcessStepsCycle()
         {
-            yield return CheckCurrentPowerRemaining();
-            yield return DoSomeOtherCheck();
+            var log = new SubStepLog(this);
+            while (true) {
+                yield return CheckRemainingBatteryCapacity(log);
+                log.Print();
+                yield return DoSomeOtherCheck(log);
+                log.Print();
+            }
         }
 
-        bool CheckCurrentPowerRemaining() {
-            var powerProducers = new List<IMyPowerProducer>();
-            //GridTerminalSystem.GetBlocksOfType<IMyPowerProducer>(powerProducers, Collect)
-            //RemainingBatteryCapacity()
-            //EchoR("");
+        bool CheckRemainingBatteryCapacity(SubStepLog log) {
+            var powerProducers = new List<IMyBatteryBlock>();
+            GridTerminalSystem.GetBlocksOfType<IMyBatteryBlock>(powerProducers, CollectSameConstruct);
+            float remainingCapacity = RemainingBatteryCapacity(powerProducers);
+            log.Add(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
             return true;
         }
 
-        bool DoSomeOtherCheck()
+        bool DoSomeOtherCheck(SubStepLog log)
         {
+            log.Add("other check...");
+            log.Add("other check 222...");
             return true;
         }
 
+        class SubStepLog {
 
+            Action<string> EchoR = text => { };
+
+            List<string> _logs = new List<string>();
+            
+            public SubStepLog(Program program)
+            {
+                EchoR = program.EchoR;
+            }
+
+            public void Add(string text) {
+                _logs.Add(text);
+            }
+
+            public void Print()
+            {
+                EchoR(string.Join("\n", _logs));
+            }
+        }
+        
     }
 }

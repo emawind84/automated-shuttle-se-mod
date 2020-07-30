@@ -183,7 +183,7 @@ namespace IngameScript
                 if (IsCorrupt(_remoteControl))
                 {
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
-                    GridTerminalSystem.GetBlocksOfType(blocks, CollectSameGrid);
+                    GridTerminalSystem.GetBlocksOfType(blocks, CollectSameConstruct);
                     _remoteControl = blocks.Find(block => block.IsFunctional & block.IsWorking);
                 }
                 
