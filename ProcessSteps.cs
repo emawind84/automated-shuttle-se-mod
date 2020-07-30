@@ -26,7 +26,7 @@ namespace IngameScript
         void ProcessStepResetControl()
         {
             var cockpits = new List<IMyCockpit>();
-            GridTerminalSystem.GetBlocksOfType(cockpits);
+            GridTerminalSystem.GetBlocksOfType(cockpits, CollectSameGrid);
             cockpits.ForEach(cockpit => {
                 cockpit.ControlThrusters = true;
             });
@@ -68,10 +68,10 @@ namespace IngameScript
 
         void ProcessStepRechargeBatteries()
         {
-            SkipIfUndocked();
+            SkipIfNotConnected();
 
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, "shuttle"));
+            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, ScriptPrefixTag));
             //EchoR(string.Format("Found #{0} batteries", batteries.Count()));
             if (batteries.Count() == 0)
             {
@@ -112,7 +112,7 @@ namespace IngameScript
         void ProcessStepDoBeforeUndocking()
         {
             var timerBlocks = new List<IMyTimerBlock>();
-            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:beforeundocking"));
+            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":beforeundocking"));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
 
             processStep++;
@@ -231,7 +231,7 @@ namespace IngameScript
         void ProcessStepEnableBroadcasting()
         {
             var beacons = new List<IMyBeacon>();
-            GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons);
+            GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             foreach (IMyBeacon beacon in beacons)
             {
                 beacon.Enabled = true;
@@ -264,7 +264,7 @@ namespace IngameScript
             
             // start docking
             List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
-            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, "shuttle:docking"));
+            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag + ":docking"));
             IMyProgrammableBlock programmableBlock = blocks.Find(block => block.IsFunctional & block.IsWorking);
             if (programmableBlock == null)
             {
@@ -302,7 +302,7 @@ namespace IngameScript
             SkipIfNoGridNearby();
 
             var timerBlocks = new List<IMyTimerBlock>();
-            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, "shuttle:afterdocking"));
+            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":afterdocking"));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
 
             processStep++;
@@ -321,6 +321,13 @@ namespace IngameScript
         void ProcessStepWaitUndefinetely()
         {
             
+        }
+
+        void ProcessStepCheckBatteryCapacity()
+        {
+            var batteries = new List<IMyBatteryBlock>();
+            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, ScriptPrefixTag));
+
         }
 
         #endregion

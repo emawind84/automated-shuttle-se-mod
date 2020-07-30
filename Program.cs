@@ -180,7 +180,7 @@ namespace IngameScript
                 if (IsCorrupt(_remoteControl))
                 {
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
-                    GridTerminalSystem.GetBlocksOfType(blocks);
+                    GridTerminalSystem.GetBlocksOfType(blocks, CollectSameGrid);
                     _remoteControl = blocks.Find(block => block.IsFunctional & block.IsWorking);
                 }
                 
@@ -257,11 +257,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 0;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 1;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-07-24";
+        const string VERSION_UPDATE = "2020-07-30";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>
@@ -320,7 +320,7 @@ namespace IngameScript
                 ProcessStepResetThrustOverride,         // 13
                 ProcessStepDoAfterDocking,              // 14
                 ProcessStepWaitAtWaypoint,              // 15
-                ProcessStepWaitUndefinetely
+                //ProcessStepWaitUndefinetely
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;
@@ -360,6 +360,7 @@ namespace IngameScript
             // output terminal info
             EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
 
+            bool commandInvoked = false;
             if (_commandLine.TryParse(argument))
             {
                 Action commandAction;
@@ -377,13 +378,12 @@ namespace IngameScript
                 {
                     // We have found a command. Invoke it.
                     commandAction();
+                    commandInvoked = true;
                 }
                 else
                 {
                     Echo($"Unknown command {command}");
                 }
-
-                return;
             }
 
             if (processStep == processSteps.Length)
@@ -395,7 +395,7 @@ namespace IngameScript
 
             try
             {
-                processSteps[processStep]();
+                if (!commandInvoked) processSteps[processStep]();
                 didAtLeastOneProcess = true;
             }
             catch (PutOffExecutionException) { }

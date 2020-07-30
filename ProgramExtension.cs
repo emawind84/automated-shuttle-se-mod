@@ -43,10 +43,11 @@ namespace IngameScript
             }
         }
 
-        void SkipIfUndocked()
+        void SkipIfNotConnected()
         {
             // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Unconnected)
+            if (DockingConnector.Status == MyShipConnectorStatus.Unconnected 
+                || DockingConnector.Status == MyShipConnectorStatus.Connectable)
             {
                 EchoR("Skipping: ship undocked");
                 previousStepEndTime = DateTime.Now;
@@ -144,10 +145,10 @@ namespace IngameScript
             // init settings
             _ini.TryParse(Me.CustomData);
 
-            var parkingPeriodInSeconds = _ini.Get(ScriptPrefixTag, "parkingPeriod").ToInt16(10);
+            var parkingPeriodInSeconds = _ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10);
             parkingPeriodAtWaypoint = new TimeSpan(0, 0, parkingPeriodInSeconds);
 
-            string customDataWaypoints = _ini.Get(ScriptPrefixTag, "waypoints").ToString();
+            string customDataWaypoints = _ini.Get(ScriptPrefixTag, "Waypoints").ToString();
             if (customDataWaypoints != "")
             {
                 string[] _waypoints = customDataWaypoints.Split(',');

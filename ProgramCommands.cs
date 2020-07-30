@@ -73,7 +73,7 @@ namespace IngameScript
         {
             var step = int.Parse(_commandLine.Argument(1));
             processStep = step;
-            Runtime.UpdateFrequency = UpdateFrequency.None;
+            Runtime.UpdateFrequency = UpdateFrequency.Once;
         }
 
         void Test()
