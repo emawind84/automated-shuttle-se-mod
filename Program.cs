@@ -69,6 +69,7 @@ namespace IngameScript
         public Action<string> EchoR;
 
         #region Script state & storage
+
         /// <summary>
         /// Handle Custom Data settings
         /// </summary>
@@ -151,6 +152,8 @@ namespace IngameScript
         IEnumerator<bool> terminalCycle;
 
         DisplayTerminal displayTerminals;
+
+        IEnumerator<bool> subProcessStepCycle;
 
         #endregion
 
@@ -300,6 +303,7 @@ namespace IngameScript
 
             displayTerminals = new DisplayTerminal(this);
             terminalCycle = SetTerminalCycle();
+            subProcessStepCycle = SetSubProcessStepsCycle();
 
             // initialise the process steps we will need to do
             processSteps = new Action[]
@@ -415,6 +419,7 @@ namespace IngameScript
             {
                 UpdateLastShipPosition();
                 previousStepEndTime = DateTime.Now;
+                subProcessStepCycle = SetSubProcessStepsCycle();
             }
 
             EchoR(string.Format("Registered waypoints: #{0}", waypoints.Count()));

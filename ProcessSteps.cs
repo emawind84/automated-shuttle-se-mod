@@ -107,6 +107,8 @@ namespace IngameScript
 
                 processStep++;
             }
+
+            subProcessStepCycle.MoveNext();
         }
 
         void ProcessStepDoBeforeUndocking()
@@ -256,6 +258,8 @@ namespace IngameScript
             {
                 processStep++;
             }
+
+            subProcessStepCycle.MoveNext();
         }
 
         void ProcessStepDockToStation()
@@ -316,6 +320,8 @@ namespace IngameScript
             {
                 processStep++;
             }
+
+            subProcessStepCycle.MoveNext();
         }
 
         void ProcessStepWaitUndefinetely()

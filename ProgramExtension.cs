@@ -239,5 +239,25 @@ namespace IngameScript
             return true;
         }
 
+        IEnumerator<bool> SetSubProcessStepsCycle()
+        {
+            yield return CheckCurrentPowerRemaining();
+            yield return DoSomeOtherCheck();
+        }
+
+        bool CheckCurrentPowerRemaining() {
+            var powerProducers = new List<IMyPowerProducer>();
+            //GridTerminalSystem.GetBlocksOfType<IMyPowerProducer>(powerProducers, Collect)
+            //RemainingBatteryCapacity()
+            //EchoR("");
+            return true;
+        }
+
+        bool DoSomeOtherCheck()
+        {
+            return true;
+        }
+
+
     }
 }
