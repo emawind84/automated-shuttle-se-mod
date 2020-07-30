@@ -7,9 +7,9 @@
     -->
     <MDKVersion>1.2.31</MDKVersion>
     <MDKUseGameBinPath>no</MDKUseGameBinPath>
-    <MDKGameBinPath>D:\SteamLibrary\SteamApps\common\SpaceEngineers\Bin64</MDKGameBinPath>
-    <MDKInstallPath>c:\users\disco emanuele\appdata\local\microsoft\visualstudio\15.0_abcccd15\extensions\ldlrb5hb.gut</MDKInstallPath>
-    <MDKOutputPath>C:\Users\Disco Emanuele\AppData\Roaming\SpaceEngineers\IngameScripts\local</MDKOutputPath>
+    <MDKGameBinPath>F:\SteamLibrary\SteamApps\common\SpaceEngineers\Bin64</MDKGameBinPath>
+    <MDKInstallPath>c:\users\emawi\appdata\local\microsoft\visualstudio\15.0_c9d595df\extensions\j0fdekie.ynq</MDKInstallPath>
+    <MDKOutputPath>C:\Users\emawi\AppData\Roaming\SpaceEngineers\IngameScripts\local</MDKOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Sandbox.Common">

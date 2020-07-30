@@ -22,7 +22,7 @@ namespace IngameScript
 
     partial class Program : MyGridProgram
     {
-        static float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
+        float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
         {
             float totalCurrentCapacity = 0; float totalMaxCapacity = 0;
             for (int i = 0; i < batteries.Count(); i++)
@@ -34,21 +34,26 @@ namespace IngameScript
             return totalCurrentCapacity / totalMaxCapacity;
         }
 
+        bool CollectSmallGrid(MyDetectedEntityInfo blk)
+        {
+            return blk.Type == MyDetectedEntityType.SmallGrid;
+        }
+
+        bool CollectAll(MyDetectedEntityInfo blk)
+        {
+            return true;
+        }
+
+        bool CollectSameGrid(IMyTerminalBlock block)
+        {
+            return block.CubeGrid == Me.CubeGrid;
+        }
+
         /// <summary>
         /// Thrown when we detect that we have taken up too much processing time
         /// and need to put off the rest of the exection until the next call.
         /// </summary>
         class PutOffExecutionException : Exception { }
-
-        static bool CollectSmallGrid(MyDetectedEntityInfo blk)
-        {
-            return blk.Type == MyDetectedEntityType.SmallGrid;
-        }
-
-        static bool CollectAll(MyDetectedEntityInfo blk)
-        {
-            return true;
-        }
     }
     
 }
