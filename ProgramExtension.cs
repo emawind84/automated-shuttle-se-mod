@@ -242,50 +242,44 @@ namespace IngameScript
 
         IEnumerator<bool> SetSubProcessStepsCycle()
         {
-            var log = new SubStepLog(this);
+            var log = new LoggerContainer(this);
             while (true) {
-                yield return CheckRemainingBatteryCapacity(log);
+                yield return CheckRemainingBatteryCapacity(log.GetLog(0));
                 log.Print();
-                yield return DoSomeOtherCheck(log);
+                yield return DoSomeOtherCheck(log.GetLog(1));
                 log.Print();
             }
         }
 
-        bool CheckRemainingBatteryCapacity(SubStepLog log) {
+        bool CheckRemainingBatteryCapacity(StringWrapper log) {
             var powerProducers = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType<IMyBatteryBlock>(powerProducers, CollectSameConstruct);
             float remainingCapacity = RemainingBatteryCapacity(powerProducers);
-            log.Add(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
+            if (remainingCapacity < CriticalBatteryCapacity && !criticalBatteryCapacityDetected) {
+                criticalBatteryCapacityDetected = true;
+                var timerblocks = new List<IMyTimerBlock>();
+                GridTerminalSystem.GetBlocksOfType<IMyTimerBlock>(timerblocks, tb => MyIni.HasSection(tb.CustomData, ScriptPrefixTag + ":CriticalCurrentDetected"));
+                timerblocks.ForEach(tb => tb.Trigger());
+            }
+            else if (remainingCapacity > CriticalBatteryCapacity && criticalBatteryCapacityDetected)
+            {
+                criticalBatteryCapacityDetected = false;
+                var timerblocks = new List<IMyTimerBlock>();
+                GridTerminalSystem.GetBlocksOfType<IMyTimerBlock>(timerblocks, tb => MyIni.HasSection(tb.CustomData, ScriptPrefixTag + ":NormalCurrentReestablished"));
+                timerblocks.ForEach(tb => tb.Trigger());
+            }
+
+            log.Append(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
             return true;
         }
 
-        bool DoSomeOtherCheck(SubStepLog log)
+        bool DoSomeOtherCheck(StringWrapper log)
         {
-            log.Add("other check...");
-            log.Add("other check 222...");
+            log.Append("other check...");
+            log.Append("other check 222...");
             return true;
         }
 
-        class SubStepLog {
-
-            Action<string> EchoR = text => { };
-
-            List<string> _logs = new List<string>();
-            
-            public SubStepLog(Program program)
-            {
-                EchoR = program.EchoR;
-            }
-
-            public void Add(string text) {
-                _logs.Add(text);
-            }
-
-            public void Print()
-            {
-                EchoR(string.Join("\n", _logs));
-            }
-        }
         
     }
 }

@@ -36,6 +36,11 @@ namespace IngameScript
         /// </summary>
         const float MinBatteryCapacity = 0.5f;
         /// <summary>
+        /// If the batteries go below this threshold something is wrong and action should be taken
+        /// Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
+        /// </summary>
+        const float CriticalBatteryCapacity = 0.2f;
+        /// <summary>
         /// How long the ship will remain at the waypoint
         /// </summary>
         TimeSpan parkingPeriodAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
@@ -118,8 +123,15 @@ namespace IngameScript
         /// without overwriting it.
         /// </summary>
         public StringBuilder echoOutput = new StringBuilder();
-
+        /// <summary>
+        /// It indicates that batteries need charging
+        /// </summary>
         bool lowBatteryCapacityDetected = false;
+        /// <summary>
+        /// It indicates that batteries are really low capacity
+        /// </summary>
+        bool criticalBatteryCapacityDetected = false;
+
         /// <summary>
         /// The current waypoint
         /// </summary>
@@ -324,7 +336,6 @@ namespace IngameScript
                 ProcessStepResetThrustOverride,         // 13
                 ProcessStepDoAfterDocking,              // 14
                 ProcessStepWaitAtWaypoint,              // 15
-                //ProcessStepWaitUndefinetely
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;

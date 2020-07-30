@@ -22,16 +22,16 @@ namespace IngameScript
 
     partial class Program : MyGridProgram
     {
-        float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
+        static float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
         {
-            float totalCurrentCapacity = 0; float totalMaxCapacity = 0;
-            for (int i = 0; i < batteries.Count(); i++)
+            float totalStoredPower = 0; float totalMaxStoredPower = 0;
+            foreach (var battery in batteries)
             {
-                totalCurrentCapacity += batteries[i].CurrentStoredPower;
-                totalMaxCapacity += batteries[i].MaxStoredPower;
+                totalStoredPower += battery.CurrentStoredPower;
+                totalMaxStoredPower += battery.MaxStoredPower;
             }
 
-            return totalCurrentCapacity / totalMaxCapacity;
+            return totalStoredPower / totalMaxStoredPower;
         }
 
         bool CollectSmallGrid(MyDetectedEntityInfo blk)
@@ -46,7 +46,7 @@ namespace IngameScript
 
         bool CollectSameConstruct(IMyTerminalBlock block)
         {
-            return block.IsSameConstructAs(Me);
+            return block.IsSameConstructAs(Me); ;
         }
 
         /// <summary>
@@ -54,6 +54,62 @@ namespace IngameScript
         /// and need to put off the rest of the exection until the next call.
         /// </summary>
         class PutOffExecutionException : Exception { }
+
+        class LoggerContainer
+        {
+
+            readonly Action<string> EchoR = text => { };
+
+            List<StringWrapper> _logs = new List<StringWrapper>();
+
+            public LoggerContainer(Program program)
+            {
+                EchoR = program.EchoR;
+            }
+
+            public StringWrapper GetLog(int index)
+            {
+                if (_logs.Count() <= index)
+                {
+                    AddNewLog();
+                    GetLog(index);
+                }
+                return _logs[index].Clean();
+            }
+
+            public void AddNewLog()
+            {
+                _logs.Add(new StringWrapper());
+            }
+
+            public void Print()
+            {
+                EchoR(string.Join("\n", _logs));
+            }
+        }
+
+        class StringWrapper
+        {
+            string _text;
+
+            public StringWrapper Append(string value)
+            {
+                if (_text != "") _text += "\n";
+                _text += value;
+                return this;
+            }
+
+            public StringWrapper Clean()
+            {
+                _text = "";
+                return this;
+            }
+
+            public override string ToString()
+            {
+                return _text;
+            }
+        }
     }
     
 }

@@ -71,8 +71,7 @@ namespace IngameScript
             SkipIfNotConnected();
 
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, ScriptPrefixTag));
-            //EchoR(string.Format("Found #{0} batteries", batteries.Count()));
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             if (batteries.Count() == 0)
             {
                 processStep++;
@@ -306,7 +305,7 @@ namespace IngameScript
             SkipIfNoGridNearby();
 
             var timerBlocks = new List<IMyTimerBlock>();
-            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":afterdocking"));
+            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":AfterDocking"));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
 
             processStep++;
@@ -326,13 +325,13 @@ namespace IngameScript
 
         void ProcessStepWaitUndefinetely()
         {
-            
+            subProcessStepCycle.MoveNext();
         }
 
         void ProcessStepCheckBatteryCapacity()
         {
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, ScriptPrefixTag));
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
 
         }
 
