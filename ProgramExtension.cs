@@ -246,8 +246,8 @@ namespace IngameScript
             while (true) {
                 yield return CheckRemainingBatteryCapacity(log.GetLog(0));
                 log.Print();
-                yield return DoSomeOtherCheck(log.GetLog(1));
-                log.Print();
+                //yield return DoSomeOtherCheck(log.GetLog(1));
+                //log.Print();
             }
         }
 

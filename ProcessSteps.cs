@@ -86,16 +86,9 @@ namespace IngameScript
                 EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
                 lowBatteryCapacityDetected = true;
 
-                batteries.ForEach(battery => {
-                    if (!battery.IsCharging)
-                    {
-                        battery.ChargeMode = ChargeMode.Auto;
-                    }
-                    else
-                    {
-                        battery.ChargeMode = ChargeMode.Recharge;
-                    }
-                });
+                foreach (var battery in batteries.Skip(1).SkipWhile(blk => blk.ChargeMode == ChargeMode.Recharge)) {
+                    battery.ChargeMode = ChargeMode.Recharge;
+                }
             }
             else
             {
@@ -326,13 +319,6 @@ namespace IngameScript
         void ProcessStepWaitUndefinetely()
         {
             subProcessStepCycle.MoveNext();
-        }
-
-        void ProcessStepCheckBatteryCapacity()
-        {
-            var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-
         }
 
         #endregion
