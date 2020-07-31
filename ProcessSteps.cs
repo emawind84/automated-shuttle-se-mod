@@ -86,7 +86,7 @@ namespace IngameScript
                 EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
                 lowBatteryCapacityDetected = true;
 
-                foreach (var battery in batteries.Skip(1).SkipWhile(blk => blk.ChargeMode == ChargeMode.Recharge)) {
+                foreach (var battery in batteries.SkipWhile(blk => blk.ChargeMode == ChargeMode.Recharge)) {
                     battery.ChargeMode = ChargeMode.Recharge;
                 }
             }

@@ -22,7 +22,7 @@ namespace IngameScript
 
     partial class Program : MyGridProgram
     {
-        static float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
+        float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
         {
             float totalStoredPower = 0; float totalMaxStoredPower = 0;
             foreach (var battery in batteries)
@@ -49,6 +49,16 @@ namespace IngameScript
             return block.IsSameConstructAs(Me); ;
         }
 
+        void EnableBlocks(CollectBlocks collect, bool enable = true)
+        {
+            var blocks = new List<IMyFunctionalBlock>();
+            GridTerminalSystem.GetBlocksOfType(blocks, blk => collect(blk));
+            foreach (var blk in blocks)
+            {
+                blk.Enabled = enable;
+            }
+        }
+
         /// <summary>
         /// Thrown when we detect that we have taken up too much processing time
         /// and need to put off the rest of the exection until the next call.
@@ -66,7 +76,7 @@ namespace IngameScript
             {
                 EchoR = program.EchoR;
             }
-
+            
             public StringWrapper GetLog(int index)
             {
                 if (_logs.Count() <= index)
@@ -77,9 +87,11 @@ namespace IngameScript
                 return _logs[index].Clean();
             }
 
-            public void AddNewLog()
+            public StringWrapper AddNewLog()
             {
-                _logs.Add(new StringWrapper());
+                StringWrapper stringWrapper = new StringWrapper();
+                _logs.Add(stringWrapper);
+                return stringWrapper;
             }
 
             public void Print()

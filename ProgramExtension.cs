@@ -21,6 +21,11 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
+
+        delegate bool CollectDetectedBlocks(MyDetectedEntityInfo blk);
+
+        delegate bool CollectBlocks(IMyTerminalBlock blk);
+
         void SkipOnTimeout(int seconds)
         {
             if (currentCycleStartTime - previousStepEndTime > new TimeSpan(0, 0, seconds))
@@ -46,7 +51,7 @@ namespace IngameScript
         void SkipIfNotConnected()
         {
             // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Unconnected 
+            if (DockingConnector.Status == MyShipConnectorStatus.Unconnected
                 || DockingConnector.Status == MyShipConnectorStatus.Connectable)
             {
                 EchoR("Skipping: ship undocked");
@@ -77,9 +82,7 @@ namespace IngameScript
             }
         }
 
-        public delegate bool CollectBlocks(MyDetectedEntityInfo blk);
-
-        void SkipIfObstructed(Vector3D directionalVector, CollectBlocks collect = null)
+        void SkipIfObstructed(Vector3D directionalVector, CollectDetectedBlocks collect = null)
         {
             if (IsObstructed(directionalVector, collect))
             {
@@ -184,7 +187,7 @@ namespace IngameScript
             return isCorrupt;
         }
 
-        bool IsObstructed(Vector3D directionalVector, CollectBlocks collect = null)
+        bool IsObstructed(Vector3D directionalVector, CollectDetectedBlocks collect = null)
         {
             if (collect == null)
             {
@@ -240,33 +243,36 @@ namespace IngameScript
             return true;
         }
 
-        IEnumerator<bool> SetSubProcessStepsCycle()
+        IEnumerator<bool> SetSubProcessStepCycle()
         {
-            var log = new LoggerContainer(this);
+            var loggerContainer = new LoggerContainer(this);
             while (true) {
-                yield return CheckRemainingBatteryCapacity(log.GetLog(0));
-                log.Print();
-                //yield return DoSomeOtherCheck(log.GetLog(1));
-                //log.Print();
+                yield return CheckRemainingBatteryCapacity(loggerContainer.GetLog(0));
+                loggerContainer.Print();
+                yield return DoSomeOtherCheck(loggerContainer.GetLog(1));
+                loggerContainer.Print();
             }
         }
 
         bool CheckRemainingBatteryCapacity(StringWrapper log) {
             var powerProducers = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType<IMyBatteryBlock>(powerProducers, CollectSameConstruct);
+            GridTerminalSystem.GetBlocksOfType(powerProducers, CollectSameConstruct);
             float remainingCapacity = RemainingBatteryCapacity(powerProducers);
             if (remainingCapacity < CriticalBatteryCapacity && !criticalBatteryCapacityDetected) {
+                log.Append("Critical power detected");
                 criticalBatteryCapacityDetected = true;
                 var timerblocks = new List<IMyTimerBlock>();
-                GridTerminalSystem.GetBlocksOfType<IMyTimerBlock>(timerblocks, tb => MyIni.HasSection(tb.CustomData, ScriptPrefixTag + ":CriticalCurrentDetected"));
+                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, CriticalCurrentDetectedTag));
                 timerblocks.ForEach(tb => tb.Trigger());
+                EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
             }
             else if (remainingCapacity > CriticalBatteryCapacity && criticalBatteryCapacityDetected)
             {
                 criticalBatteryCapacityDetected = false;
                 var timerblocks = new List<IMyTimerBlock>();
-                GridTerminalSystem.GetBlocksOfType<IMyTimerBlock>(timerblocks, tb => MyIni.HasSection(tb.CustomData, ScriptPrefixTag + ":NormalCurrentReestablished"));
+                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, NormalCurrentReestablishedTag));
                 timerblocks.ForEach(tb => tb.Trigger());
+                EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
             }
 
             log.Append(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
@@ -280,6 +286,6 @@ namespace IngameScript
             return true;
         }
 
-        
+
     }
 }

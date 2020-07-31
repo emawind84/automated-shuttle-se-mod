@@ -22,6 +22,13 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
         const string ScriptPrefixTag = "SHUTTLE";
+
+        const string DisableOnEmergencyTag = ScriptPrefixTag + ":DisableOnEmergency";
+
+        const string CriticalCurrentDetectedTag = ScriptPrefixTag + ":CriticalCurrentDetected";
+
+        const string NormalCurrentReestablishedTag = ScriptPrefixTag + ":NormalCurrentReestablished";
+
         /// <summary>
         /// Safe distance from dock before going to next waypoint
         /// </summary>
@@ -39,7 +46,7 @@ namespace IngameScript
         /// If the batteries go below this threshold something is wrong and action should be taken
         /// Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
         /// </summary>
-        const float CriticalBatteryCapacity = 0.2f;
+        const float CriticalBatteryCapacity = 0.3f;
         /// <summary>
         /// How long the ship will remain at the waypoint
         /// </summary>
@@ -315,27 +322,28 @@ namespace IngameScript
 
             displayTerminals = new DisplayTerminal(this);
             terminalCycle = SetTerminalCycle();
-            subProcessStepCycle = SetSubProcessStepsCycle();
+            subProcessStepCycle = SetSubProcessStepCycle();
 
             // initialise the process steps we will need to do
             processSteps = new Action[]
             {
-                ProcessStepResetControl,                // 0
-                ProcessStepRechargeBatteries,           // 1
-                ProcessStepFindNextWaypoint,            // 2
-                ProcessStepDoBeforeUndocking,           // 3
-                ProcessStepUndockShip,                  // 4
-                ProcessStepMoveAwayFromDock,            // 5  // block during docking (connector connected)
-                ProcessStepResetThrustOverride,         // 6
-                ProcessStepGoToWaypoint,                // 7
-                ProcessStepDisableBroadcasting,         // 8
-                ProcessStepTravelToWaypoint,            // 9
-                ProcessStepEnableBroadcasting,          // 10
-                ProcessStepDockToStation,               // 11
-                ProcessStepWaitDockingCompletion,       // 12
-                ProcessStepResetThrustOverride,         // 13
-                ProcessStepDoAfterDocking,              // 14
-                ProcessStepWaitAtWaypoint,              // 15
+                //ProcessStepResetControl,                // 0
+                //ProcessStepRechargeBatteries,           // 1
+                //ProcessStepFindNextWaypoint,            // 2
+                //ProcessStepDoBeforeUndocking,           // 3
+                //ProcessStepUndockShip,                  // 4
+                //ProcessStepMoveAwayFromDock,            // 5  // block during docking (connector connected)
+                //ProcessStepResetThrustOverride,         // 6
+                //ProcessStepGoToWaypoint,                // 7
+                //ProcessStepDisableBroadcasting,         // 8
+                //ProcessStepTravelToWaypoint,            // 9
+                //ProcessStepEnableBroadcasting,          // 10
+                //ProcessStepDockToStation,               // 11
+                //ProcessStepWaitDockingCompletion,       // 12
+                //ProcessStepResetThrustOverride,         // 13
+                //ProcessStepDoAfterDocking,              // 14
+                //ProcessStepWaitAtWaypoint,              // 15
+                ProcessStepWaitUndefinetely
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;
@@ -430,7 +438,7 @@ namespace IngameScript
             {
                 UpdateLastShipPosition();
                 previousStepEndTime = DateTime.Now;
-                subProcessStepCycle = SetSubProcessStepsCycle();
+                subProcessStepCycle = SetSubProcessStepCycle();
             }
 
             EchoR(string.Format("Registered waypoints: #{0}", waypoints.Count()));
