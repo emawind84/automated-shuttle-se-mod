@@ -327,23 +327,23 @@ namespace IngameScript
             // initialise the process steps we will need to do
             processSteps = new Action[]
             {
-                //ProcessStepResetControl,                // 0
-                //ProcessStepRechargeBatteries,           // 1
-                //ProcessStepFindNextWaypoint,            // 2
-                //ProcessStepDoBeforeUndocking,           // 3
-                //ProcessStepUndockShip,                  // 4
-                //ProcessStepMoveAwayFromDock,            // 5  // block during docking (connector connected)
-                //ProcessStepResetThrustOverride,         // 6
-                //ProcessStepGoToWaypoint,                // 7
-                //ProcessStepDisableBroadcasting,         // 8
-                //ProcessStepTravelToWaypoint,            // 9
-                //ProcessStepEnableBroadcasting,          // 10
-                //ProcessStepDockToStation,               // 11
-                //ProcessStepWaitDockingCompletion,       // 12
-                //ProcessStepResetThrustOverride,         // 13
-                //ProcessStepDoAfterDocking,              // 14
-                //ProcessStepWaitAtWaypoint,              // 15
-                ProcessStepWaitUndefinetely
+                ProcessStepResetControl,                // 0
+                ProcessStepRechargeBatteries,           // 1
+                ProcessStepFindNextWaypoint,            // 2
+                ProcessStepDoBeforeUndocking,           // 3
+                ProcessStepUndockShip,                  // 4
+                ProcessStepMoveAwayFromDock,            // 5  // block during docking (connector connected)
+                ProcessStepResetThrustOverride,         // 6
+                ProcessStepGoToWaypoint,                // 7
+                ProcessStepDisableBroadcasting,         // 8
+                ProcessStepTravelToWaypoint,            // 9
+                ProcessStepEnableBroadcasting,          // 10
+                ProcessStepDockToStation,               // 11
+                ProcessStepWaitDockingCompletion,       // 12
+                ProcessStepResetThrustOverride,         // 13
+                ProcessStepDoAfterDocking,              // 14
+                ProcessStepWaitAtWaypoint,              // 15
+                //ProcessStepWaitUndefinetely
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;
