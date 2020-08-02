@@ -56,9 +56,7 @@ namespace IngameScript
 
                 if (distanceFromWaypoint < 100)
                 {
-                    int totalWaypoints = waypoints.Count();
-                    int index = waypoints.FindIndex(wp => wp.Name == currentWaypoint.Name);
-                    currentWaypoint = waypoints[(index + 1) % totalWaypoints];
+                    currentWaypoint = GetNextWaypoint();
                 }
 
             }
@@ -81,11 +79,12 @@ namespace IngameScript
             float remainingCapacity = RemainingBatteryCapacity(batteries);
 
             if (remainingCapacity < MinBatteryCapacity
-                || (remainingCapacity < MaxBatteryCapacity && lowBatteryCapacityDetected))
+                || (remainingCapacity < ChargedBatteryCapacity && lowBatteryCapacityDetected))
             {
                 EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
-                lowBatteryCapacityDetected = true;
+                informationTerminals.Text = string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0));
 
+                lowBatteryCapacityDetected = true;
                 foreach (var battery in batteries.SkipWhile(blk => blk.ChargeMode == ChargeMode.Recharge)) {
                     battery.ChargeMode = ChargeMode.Recharge;
                 }
@@ -103,11 +102,22 @@ namespace IngameScript
             subProcessStepCycle.MoveNext();
         }
 
+        void ProcessStepWaitBeforeUndocking()
+        {
+            SkipOnTimeout(10);
+
+            informationTerminals.Text = "Doors are closing";
+        }
+
         void ProcessStepDoBeforeUndocking()
         {
             var timerBlocks = new List<IMyTimerBlock>();
-            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":beforeundocking"));
+            GridTerminalSystem.GetBlocksOfType(timerBlocks, blk => MyIni.HasSection(blk.CustomData, TriggerBeforeUndockingTag) && CollectSameConstruct(blk));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
+
+            var blocks = new List<IMyFunctionalBlock>();
+            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, ToggleBeforeUndockingTag) && CollectSameConstruct(blk));
+            blocks.ForEach(blk => blk.Enabled = !blk.Enabled);
 
             processStep++;
         }
@@ -206,14 +216,14 @@ namespace IngameScript
         void ProcessStepDisableBroadcasting()
         {
             var beacons = new List<IMyBeacon>();
-            GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            GridTerminalSystem.GetBlocksOfType(beacons, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             foreach (IMyBeacon beacon in beacons)
             {
                 beacon.Enabled = false;
             }
 
             var antennas = new List<IMyRadioAntenna>();
-            GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            GridTerminalSystem.GetBlocksOfType(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             foreach (var antenna in antennas)
             {
                 antenna.Enabled = false;
@@ -225,14 +235,14 @@ namespace IngameScript
         void ProcessStepEnableBroadcasting()
         {
             var beacons = new List<IMyBeacon>();
-            GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            GridTerminalSystem.GetBlocksOfType(beacons, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             foreach (IMyBeacon beacon in beacons)
             {
                 beacon.Enabled = true;
             }
 
             var antennas = new List<IMyRadioAntenna>();
-            GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            GridTerminalSystem.GetBlocksOfType(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             foreach (var antenna in antennas)
             {
                 antenna.Enabled = true;
@@ -251,6 +261,9 @@ namespace IngameScript
                 processStep++;
             }
 
+            informationTerminals.Text = string.Format("Destination {0}", currentWaypoint.Name);
+            informationTerminals.Text += string.Format("\nArrival in {0} seconds", Math.Round(distanceFromWaypoint / RemoteControl.GetShipSpeed(), 0));
+
             subProcessStepCycle.MoveNext();
         }
 
@@ -260,18 +273,23 @@ namespace IngameScript
             
             // start docking
             List<IMyProgrammableBlock> blocks = new List<IMyProgrammableBlock>();
-            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag + ":docking"));
+            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, DockingScriptTag));
             IMyProgrammableBlock programmableBlock = blocks.Find(block => block.IsFunctional & block.IsWorking);
             if (programmableBlock == null)
             {
+                EchoR("Docking script not found");
                 processStep++;
                 throw new PutOffExecutionException();
             }
-            if (programmableBlock.IsRunning) { return; }
+            if (programmableBlock.IsRunning) {
+                EchoR("Docking script already running");
+                processStep++;
+                throw new PutOffExecutionException();
+            }
 
             if (IsObstructed(DockingConnector.WorldMatrix.Forward, CollectSmallGrid))
             {
-                // wait until path is clear
+                EchoR("Path obstructed, waiting for docking");
                 throw new PutOffExecutionException();
             }
 
@@ -288,7 +306,6 @@ namespace IngameScript
             if (DockingConnector.Status == MyShipConnectorStatus.Connectable
                 || DockingConnector.Status == MyShipConnectorStatus.Connected)
             {
-
                 processStep++;
             }
         }
@@ -298,9 +315,28 @@ namespace IngameScript
             SkipIfNoGridNearby();
 
             var timerBlocks = new List<IMyTimerBlock>();
-            GridTerminalSystem.GetBlocksOfType(timerBlocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":AfterDocking"));
+            GridTerminalSystem.GetBlocksOfType(timerBlocks, blk => MyIni.HasSection(blk.CustomData, TriggerAfterDockingTag) && CollectSameConstruct(blk));
             timerBlocks.ForEach(timerBlock => timerBlock.Trigger());
 
+            var blocks = new List<IMyFunctionalBlock>();
+            GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, ToggleAfterDockingTag) && CollectSameConstruct(blk));
+            blocks.ForEach(blk => blk.Enabled = !blk.Enabled);
+
+            processStep++;
+        }
+
+        void ProcessStepDisconnectConnector()
+        {
+            DockingConnector.Disconnect();
+            processStep++;
+        }
+
+        void ProcessStepConnectConnector()
+        {
+            if (DockingConnector.Status == MyShipConnectorStatus.Connectable)
+            {
+                DockingConnector.Connect();
+            }
             processStep++;
         }
 
@@ -312,6 +348,10 @@ namespace IngameScript
             {
                 processStep++;
             }
+
+            TimeSpan remainingSeconds = parkingPeriodAtWaypoint - (n - previousStepEndTime);
+            informationTerminals.Text = string.Format("Destination {0}", GetNextWaypoint()?.Name);
+            informationTerminals.Text = string.Format("Departure in {0} seconds", remainingSeconds.Seconds);
 
             subProcessStepCycle.MoveNext();
         }

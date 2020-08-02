@@ -23,11 +23,25 @@ namespace IngameScript
     {
         const string ScriptPrefixTag = "SHUTTLE";
 
+        const string ReferenceBlockTag = ScriptPrefixTag + ":ReferencePoint";
+
         const string DisableOnEmergencyTag = ScriptPrefixTag + ":DisableOnEmergency";
 
-        const string CriticalCurrentDetectedTag = ScriptPrefixTag + ":CriticalCurrentDetected";
+        const string TriggerOnCriticalCurrentDetectedTag = ScriptPrefixTag + ":TriggerOnCriticalCurrentDetected";
 
-        const string NormalCurrentReestablishedTag = ScriptPrefixTag + ":NormalCurrentReestablished";
+        const string TriggerOnNormalCurrentReestablishedTag = ScriptPrefixTag + ":TriggerOnNormalCurrentReestablished";
+
+        const string TriggerBeforeUndockingTag = ScriptPrefixTag + ":TriggerBeforeUndocking";
+
+        const string TriggerAfterDockingTag = ScriptPrefixTag + ":TriggerAfterDocking";
+
+        const string ToggleBeforeUndockingTag = ScriptPrefixTag + ":ToggleBeforeUndocking";
+
+        const string ToggleAfterDockingTag = ScriptPrefixTag + ":ToggleAfterDocking";
+
+        const string DisplayTerminalTag = ScriptPrefixTag + ":DisplayTerminal";
+
+        const string DockingScriptTag = ScriptPrefixTag + ":DockingScript";
 
         /// <summary>
         /// Safe distance from dock before going to next waypoint
@@ -36,7 +50,7 @@ namespace IngameScript
         /// <summary>
         /// The maximum battery capacity to reach during recharging
         /// </summary>
-        const float MaxBatteryCapacity = 0.95f;
+        const float ChargedBatteryCapacity = 0.95f;
         /// <summary>
         /// The minimum battery capacity to operate the ship.
         /// If the capacity go down this level the batteries will start recharging if the ship is docked
@@ -46,7 +60,7 @@ namespace IngameScript
         /// If the batteries go below this threshold something is wrong and action should be taken
         /// Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
         /// </summary>
-        const float CriticalBatteryCapacity = 0.3f;
+        const float CriticalBatteryCapacity = 0.4f;
         /// <summary>
         /// How long the ship will remain at the waypoint
         /// </summary>
@@ -170,7 +184,9 @@ namespace IngameScript
         /// </summary>
         IEnumerator<bool> terminalCycle;
 
-        DisplayTerminal displayTerminals;
+        DebugTerminal debugTerminals;
+
+        DisplayTerminal informationTerminals;
 
         IEnumerator<bool> subProcessStepCycle;
 
@@ -201,9 +217,14 @@ namespace IngameScript
             {
                 if (IsCorrupt(_remoteControl))
                 {
+                    EchoR("Searching remote control");
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
-                    GridTerminalSystem.GetBlocksOfType(blocks, CollectSameConstruct);
-                    _remoteControl = blocks.Find(block => block.IsFunctional & block.IsWorking);
+                    GridTerminalSystem.GetBlocksOfType(blocks, blk => CollectSameConstruct(blk) && blk.IsWorking);
+                    if (blocks.Count() > 0)
+                    {
+                        _remoteControl = blocks[0];
+                    }
+                    EchoR($"RemoteControl: {_remoteControl?.CustomName ?? "NA"}");
                 }
                 
                 if (_remoteControl == null)
@@ -222,8 +243,11 @@ namespace IngameScript
                 if (IsCorrupt(_dockingConnector))
                 {
                     List<IMyShipConnector> blocks = new List<IMyShipConnector>();
-                    GridTerminalSystem.GetBlocksOfType(blocks, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-                    _dockingConnector = blocks.Find(block => block.IsFunctional & block.IsWorking);
+                    GridTerminalSystem.GetBlocksOfType(blocks, blk => CollectSameConstruct(blk) && blk.IsWorking && MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+                    if (blocks.Count() > 0)
+                    {
+                        _dockingConnector = blocks[0];
+                    }
                 }
 
                 if (_dockingConnector == null)
@@ -261,13 +285,13 @@ namespace IngameScript
                 if (IsCorrupt(_referenceBlock))
                 {
                     var blocks = new List<IMyTerminalBlock>();
-                    GridTerminalSystem.GetBlocksOfType(blocks, block => MyIni.HasSection(block.CustomData, ScriptPrefixTag + ":reference"));
+                    GridTerminalSystem.GetBlocksOfType(blocks, block => MyIni.HasSection(block.CustomData, ReferenceBlockTag));
                     _referenceBlock = blocks.Find(blk => true);
                 }
 
                 if (_referenceBlock == null)
                 {
-                    _referenceBlock = RemoteControl;
+                    _referenceBlock = Me;
                 }
                 return _referenceBlock;
             }
@@ -320,7 +344,8 @@ namespace IngameScript
             RetrieveStorage();
             UpdateLastShipPosition();
 
-            displayTerminals = new DisplayTerminal(this);
+            debugTerminals = new DebugTerminal(this);
+            informationTerminals = new DisplayTerminal(this, blk => MyIni.HasSection(blk.CustomData, DisplayTerminalTag) && CollectSameConstruct(blk));
             terminalCycle = SetTerminalCycle();
             subProcessStepCycle = SetSubProcessStepCycle();
 
@@ -328,22 +353,26 @@ namespace IngameScript
             processSteps = new Action[]
             {
                 ProcessStepResetControl,                // 0
+                //ProcessStepConnectConnector,
                 ProcessStepRechargeBatteries,           // 1
-                ProcessStepFindNextWaypoint,            // 2
-                ProcessStepDoBeforeUndocking,           // 3
-                ProcessStepUndockShip,                  // 4
-                ProcessStepMoveAwayFromDock,            // 5  // block during docking (connector connected)
-                ProcessStepResetThrustOverride,         // 6
-                ProcessStepGoToWaypoint,                // 7
-                ProcessStepDisableBroadcasting,         // 8
-                ProcessStepTravelToWaypoint,            // 9
-                ProcessStepEnableBroadcasting,          // 10
-                ProcessStepDockToStation,               // 11
-                ProcessStepWaitDockingCompletion,       // 12
-                ProcessStepResetThrustOverride,         // 13
-                ProcessStepDoAfterDocking,              // 14
-                ProcessStepWaitAtWaypoint,              // 15
-                //ProcessStepWaitUndefinetely
+                //ProcessStepDisconnectConnector,
+                //ProcessStepFindNextWaypoint,            // 2
+                //ProcessStepWaitBeforeUndocking,
+                //ProcessStepDoBeforeUndocking,           // 3
+                //ProcessStepUndockShip,                  // 4
+                //ProcessStepMoveAwayFromDock,            // 5  // block during docking (connector connected)
+                //ProcessStepResetThrustOverride,         // 6
+                //ProcessStepGoToWaypoint,                // 7
+                //ProcessStepDisableBroadcasting,         // 8
+                //ProcessStepTravelToWaypoint,            // 9
+                //ProcessStepEnableBroadcasting,          // 10
+                //ProcessStepDockToStation,               // 11
+                //ProcessStepWaitDockingCompletion,       // 12
+                //ProcessStepDisconnectConnector,
+                //ProcessStepResetThrustOverride,         // 13
+                //ProcessStepDoAfterDocking,              // 14
+                //ProcessStepWaitAtWaypoint,              // 15
+                ProcessStepWaitUndefinetely
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;

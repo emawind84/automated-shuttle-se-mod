@@ -22,6 +22,10 @@ namespace IngameScript
 
     partial class Program : MyGridProgram
     {
+        delegate bool CollectDetectedBlocks(MyDetectedEntityInfo blk);
+
+        delegate bool CollectBlocks(IMyTerminalBlock blk);
+
         float RemainingBatteryCapacity(List<IMyBatteryBlock> batteries)
         {
             float totalStoredPower = 0; float totalMaxStoredPower = 0;

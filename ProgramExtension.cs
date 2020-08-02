@@ -22,10 +22,6 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
-        delegate bool CollectDetectedBlocks(MyDetectedEntityInfo blk);
-
-        delegate bool CollectBlocks(IMyTerminalBlock blk);
-
         void SkipOnTimeout(int seconds)
         {
             if (currentCycleStartTime - previousStepEndTime > new TimeSpan(0, 0, seconds))
@@ -112,6 +108,14 @@ namespace IngameScript
             }
         }
 
+        Waypoint GetNextWaypoint()
+        {
+            if (waypoints.Count() == 0) return null;
+            int totalWaypoints = waypoints.Count();
+            int index = waypoints.FindIndex(wp => wp.Name == currentWaypoint.Name);
+            return waypoints[(index + 1) % totalWaypoints];
+        }
+
         void UpdateLastShipPosition()
         {
             lastShipPosition = ReferenceBlock.GetPosition();
@@ -170,7 +174,8 @@ namespace IngameScript
         {
             while (true)
             {
-                yield return displayTerminals.Run();
+                yield return debugTerminals.Run();
+                yield return informationTerminals.Run();
             }
         }
 
@@ -249,6 +254,10 @@ namespace IngameScript
             while (true) {
                 yield return CheckRemainingBatteryCapacity(loggerContainer.GetLog(0));
                 loggerContainer.Print();
+                //yield return EnableBroadcasting(loggerContainer.GetLog(1));
+                yield return SendBroadcastMessage(loggerContainer.GetLog(1));
+                loggerContainer.Print();
+                //yield return DisableBroadcasting(loggerContainer.GetLog(1));
                 //yield return DoSomeOtherCheck(loggerContainer.GetLog(1));
                 //loggerContainer.Print();
             }
@@ -262,16 +271,20 @@ namespace IngameScript
                 log.Append("Critical power detected");
                 criticalBatteryCapacityDetected = true;
                 var timerblocks = new List<IMyTimerBlock>();
-                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, CriticalCurrentDetectedTag));
+                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnCriticalCurrentDetectedTag));
                 timerblocks.ForEach(tb => tb.Trigger());
+
+                // disable blocks with DisableOnEmergencyTag
                 EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
             }
             else if (remainingCapacity > CriticalBatteryCapacity && criticalBatteryCapacityDetected)
             {
                 criticalBatteryCapacityDetected = false;
                 var timerblocks = new List<IMyTimerBlock>();
-                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, NormalCurrentReestablishedTag));
+                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnNormalCurrentReestablishedTag));
                 timerblocks.ForEach(tb => tb.Trigger());
+
+                // enable blocks with DisableOnEmergencyTag
                 EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
             }
 
@@ -286,6 +299,40 @@ namespace IngameScript
             return true;
         }
 
+        bool EnableBroadcasting(StringWrapper log)
+        {
+            var antennas = new List<IMyRadioAntenna>();
+            GridTerminalSystem.GetBlocksOfType(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            foreach (var antenna in antennas)
+            {
+                antenna.Enabled = true;
+                antenna.EnableBroadcasting = true;
+            }
+            return true;
+        }
+
+        bool DisableBroadcasting(StringWrapper log)
+        {
+            var antennas = new List<IMyRadioAntenna>();
+            GridTerminalSystem.GetBlocksOfType(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            foreach (var antenna in antennas)
+            {
+                antenna.Enabled = false;
+                antenna.EnableBroadcasting = false;
+            }
+            return true;
+        }
+
+        bool SendBroadcastMessage(StringWrapper log)
+        {
+            
+
+            string STATE_BROADCAST_TAG = "SHUTTLE_STATE";
+            IGC.SendBroadcastMessage(STATE_BROADCAST_TAG, $"MSG: Shuttle {Me.CubeGrid.EntityId} - {lastShipPosition}");
+
+            
+            return true;
+        }
 
     }
 }
