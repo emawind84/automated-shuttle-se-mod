@@ -76,6 +76,12 @@ namespace IngameScript
             Runtime.UpdateFrequency = UpdateFrequency.Once;
         }
 
+        void NextStep()
+        {
+            processStep++;
+            Runtime.UpdateFrequency = UpdateFrequency.Once;
+        }
+
         void Test()
         {
 

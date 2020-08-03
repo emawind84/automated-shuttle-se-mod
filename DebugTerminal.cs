@@ -26,14 +26,14 @@ namespace IngameScript
         /// </summary>
         class DebugTerminal : Terminal<IMyTerminalBlock>
         {
-            readonly CollectBlocks collect;
+            readonly Func<IMyTerminalBlock, bool> collect;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="DebugTerminal"/> class.
             /// </summary>
             /// <param name="program">The program<see cref="Program"/>.</param>
             /// <param name="map">The map<see cref="Map"/>.</param>
-            public DebugTerminal(Program program, CollectBlocks collect = null) : base(program)
+            public DebugTerminal(Program program, Func<IMyTerminalBlock, bool> collect = null) : base(program)
             {
                 if (collect != null)
                 {

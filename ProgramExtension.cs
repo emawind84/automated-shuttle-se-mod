@@ -153,8 +153,8 @@ namespace IngameScript
             _ini.TryParse(Me.CustomData);
 
             var parkingPeriodInSeconds = _ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10);
-            parkingPeriodAtWaypoint = new TimeSpan(0, 0, parkingPeriodInSeconds);
-
+            parkingPeriodAtWaypoint = TimeSpan.FromSeconds(parkingPeriodInSeconds);
+            
             string customDataWaypoints = _ini.Get(ScriptPrefixTag, "Waypoints").ToString();
             if (customDataWaypoints != "")
             {
@@ -254,19 +254,17 @@ namespace IngameScript
             while (true) {
                 yield return CheckRemainingBatteryCapacity(loggerContainer.GetLog(0));
                 loggerContainer.Print();
-                //yield return EnableBroadcasting(loggerContainer.GetLog(1));
-                yield return SendBroadcastMessage(loggerContainer.GetLog(1));
+                yield return SendBroadcastMessage();
                 loggerContainer.Print();
-                //yield return DisableBroadcasting(loggerContainer.GetLog(1));
                 //yield return DoSomeOtherCheck(loggerContainer.GetLog(1));
                 //loggerContainer.Print();
             }
         }
 
         bool CheckRemainingBatteryCapacity(StringWrapper log) {
-            var powerProducers = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(powerProducers, CollectSameConstruct);
-            float remainingCapacity = RemainingBatteryCapacity(powerProducers);
+            var batteries = new List<IMyBatteryBlock>();
+            GridTerminalSystem.GetBlocksOfType(batteries, CollectSameConstruct);
+            float remainingCapacity = RemainingBatteryCapacity(batteries);
             if (remainingCapacity < CriticalBatteryCapacity && !criticalBatteryCapacityDetected) {
                 log.Append("Critical power detected");
                 criticalBatteryCapacityDetected = true;
@@ -299,37 +297,34 @@ namespace IngameScript
             return true;
         }
 
-        bool EnableBroadcasting(StringWrapper log)
+        bool EnableBroadcasting()
         {
-            var antennas = new List<IMyRadioAntenna>();
-            GridTerminalSystem.GetBlocksOfType(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-            foreach (var antenna in antennas)
-            {
-                antenna.Enabled = true;
-                antenna.EnableBroadcasting = true;
-            }
+            var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            antenna.Enabled = true;
+            antenna.EnableBroadcasting = true;
+
             return true;
         }
 
-        bool DisableBroadcasting(StringWrapper log)
+        bool DisableBroadcasting()
         {
-            var antennas = new List<IMyRadioAntenna>();
-            GridTerminalSystem.GetBlocksOfType(antennas, blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-            foreach (var antenna in antennas)
-            {
-                antenna.Enabled = false;
-                antenna.EnableBroadcasting = false;
-            }
+            var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+            antenna.EnableBroadcasting = false;
+
             return true;
         }
 
-        bool SendBroadcastMessage(StringWrapper log)
+        bool SendBroadcastMessage()
         {
-            
-
+            var message = MyTuple.Create
+            (
+                Me.CubeGrid.EntityId,
+                Me.CubeGrid.CustomName,
+                lastShipPosition,
+                informationTerminals.Text
+            );
             string STATE_BROADCAST_TAG = "SHUTTLE_STATE";
-            IGC.SendBroadcastMessage(STATE_BROADCAST_TAG, $"MSG: Shuttle {Me.CubeGrid.EntityId} - {lastShipPosition}");
-
+            IGC.SendBroadcastMessage(STATE_BROADCAST_TAG, message);
             
             return true;
         }
