@@ -36,6 +36,8 @@ namespace IngameScript
             ZeroThrustOverride();
             PrepareSensor();
 
+            lowBatteryCapacityDetected = false;
+
             processStep++;
         }
 

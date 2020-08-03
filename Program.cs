@@ -50,7 +50,7 @@ namespace IngameScript
         /// <summary>
         /// The maximum battery capacity to reach during recharging
         /// </summary>
-        const float ChargedBatteryCapacity = 0.95f;
+        const float ChargedBatteryCapacity = 0.9f;
         /// <summary>
         /// The minimum battery capacity to operate the ship.
         /// If the capacity go down this level the batteries will start recharging if the ship is docked
