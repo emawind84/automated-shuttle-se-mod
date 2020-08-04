@@ -105,10 +105,7 @@ namespace IngameScript
                 return stringWrapper;
             }
 
-            public void Print()
-            {
-                EchoR(string.Join("\n", _logs));
-            }
+            public void Print() => EchoR(string.Join("\n", _logs.FindAll(log => log.hasText())));
         }
 
         class StringWrapper
@@ -126,6 +123,11 @@ namespace IngameScript
             {
                 _text = "";
                 return this;
+            }
+
+            public bool hasText()
+            {
+                return _text != "";
             }
 
             public override string ToString()

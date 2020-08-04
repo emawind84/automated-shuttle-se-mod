@@ -43,6 +43,8 @@ namespace IngameScript
 
         const string DockingScriptTag = ScriptPrefixTag + ":DockingScript";
 
+        const string EmergencyPowerTag = ScriptPrefixTag + ":EmergencyPower";
+
         /// <summary>
         /// Safe distance from dock before going to next waypoint
         /// </summary>
@@ -55,12 +57,12 @@ namespace IngameScript
         /// The minimum battery capacity to operate the ship.
         /// If the capacity go down this level the batteries will start recharging if the ship is docked
         /// </summary>
-        const float MinBatteryCapacity = 0.4f;
+        const float MinBatteryCapacity = 0.5f;
         /// <summary>
         /// If the batteries go below this threshold something is wrong and action should be taken
         /// Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
         /// </summary>
-        const float CriticalBatteryCapacity = 0.2f;
+        const float CriticalBatteryCapacity = 0.3f;
         /// <summary>
         /// How long the ship will remain at the waypoint
         /// </summary>

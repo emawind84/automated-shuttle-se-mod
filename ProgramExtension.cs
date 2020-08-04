@@ -252,20 +252,20 @@ namespace IngameScript
         {
             var loggerContainer = new LoggerContainer(this);
             while (true) {
-                yield return CheckRemainingBatteryCapacity(loggerContainer.GetLog(0));
+                yield return SubProcessCheckRemainingBatteryCapacity(loggerContainer.GetLog(0));
                 loggerContainer.Print();
-                yield return SendBroadcastMessage();
+                yield return SubProcessActivateEmergencyPower(loggerContainer.GetLog(1));
                 loggerContainer.Print();
-                //yield return DoSomeOtherCheck(loggerContainer.GetLog(1));
-                //loggerContainer.Print();
+                yield return SubProcessSendBroadcastMessage();
+                loggerContainer.Print();
             }
         }
 
-        bool CheckRemainingBatteryCapacity(StringWrapper log) {
+        bool SubProcessCheckRemainingBatteryCapacity(StringWrapper log) {
             var batteries = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType(batteries, CollectSameConstruct);
             float remainingCapacity = RemainingBatteryCapacity(batteries);
-            if (remainingCapacity < CriticalBatteryCapacity && !criticalBatteryCapacityDetected) {
+            if (remainingCapacity < CriticalBatteryCapacity) {
                 log.Append("Critical power detected");
                 criticalBatteryCapacityDetected = true;
                 var timerblocks = new List<IMyTimerBlock>();
@@ -275,7 +275,7 @@ namespace IngameScript
                 // disable blocks with DisableOnEmergencyTag
                 EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
             }
-            else if (remainingCapacity > CriticalBatteryCapacity && criticalBatteryCapacityDetected)
+            else
             {
                 criticalBatteryCapacityDetected = false;
                 var timerblocks = new List<IMyTimerBlock>();
@@ -290,14 +290,31 @@ namespace IngameScript
             return true;
         }
 
-        bool DoSomeOtherCheck(StringWrapper log)
+        bool SubProcessActivateEmergencyPower(StringWrapper log)
+        {
+            var generators = new List<IMyPowerProducer>();
+            GridTerminalSystem.GetBlocksOfType(generators, blk => CollectSameConstruct(blk) && MyIni.HasSection(blk.CustomData, EmergencyPowerTag));
+
+            if (criticalBatteryCapacityDetected)
+            {
+                log.Append("Emergency power on");
+                generators.ForEach(blk => blk.Enabled = true);
+            }
+            else
+            {
+                generators.ForEach(blk => blk.Enabled = false);
+            }
+            return true;
+        }
+
+        bool SubProcessDoSomeOtherCheck(StringWrapper log)
         {
             log.Append("other check...");
             log.Append("other check 222...");
             return true;
         }
 
-        bool EnableBroadcasting()
+        bool SubProcessEnableBroadcasting()
         {
             var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             antenna.Enabled = true;
@@ -306,7 +323,7 @@ namespace IngameScript
             return true;
         }
 
-        bool DisableBroadcasting()
+        bool SubProcessDisableBroadcasting()
         {
             var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
             antenna.EnableBroadcasting = false;
@@ -314,7 +331,7 @@ namespace IngameScript
             return true;
         }
 
-        bool SendBroadcastMessage()
+        bool SubProcessSendBroadcastMessage()
         {
             var message = MyTuple.Create
             (
