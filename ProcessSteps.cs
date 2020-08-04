@@ -88,7 +88,10 @@ namespace IngameScript
 
                 lowBatteryCapacityDetected = true;
                 foreach (var battery in batteries.FindAll(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag))) {
-                    battery.ChargeMode = ChargeMode.Recharge;
+                    if (battery.CurrentStoredPower / battery.MaxStoredPower < ChargedBatteryCapacity)
+                    {
+                        battery.ChargeMode = ChargeMode.Recharge;
+                    }
                 }
             }
             else

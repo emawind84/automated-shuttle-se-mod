@@ -48,19 +48,19 @@ namespace IngameScript
         /// </summary>
         const int SafeDistanceFromDock = 20;
         /// <summary>
-        /// The maximum battery capacity to reach during recharging
+        /// The overall batteries capacity in order to consider them charged
         /// </summary>
         const float ChargedBatteryCapacity = 0.9f;
         /// <summary>
         /// The minimum battery capacity to operate the ship.
         /// If the capacity go down this level the batteries will start recharging if the ship is docked
         /// </summary>
-        const float MinBatteryCapacity = 0.5f;
+        const float MinBatteryCapacity = 0.4f;
         /// <summary>
         /// If the batteries go below this threshold something is wrong and action should be taken
         /// Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
         /// </summary>
-        const float CriticalBatteryCapacity = 0.4f;
+        const float CriticalBatteryCapacity = 0.2f;
         /// <summary>
         /// How long the ship will remain at the waypoint
         /// </summary>
