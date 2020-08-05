@@ -140,10 +140,16 @@ namespace IngameScript
 
         void RetrieveStorage()
         {
-            var currentWaypointName = Storage;
-            if (currentWaypointName != null)
+            string[] storedData = Storage.Split(';');
+            if (storedData.Length >= 1)
             {
-                currentWaypoint = waypoints.Find(waypoint => waypoint.Name == currentWaypointName);
+                currentWaypoint = waypoints.Find(waypoint => waypoint.Name == storedData[0]);
+                //EchoR(string.Format("Retrieved waypoint: {0}", currentWaypoint?.Name));
+            }
+            if (storedData.Length >= 2)
+            {
+                bool.TryParse(storedData[1], out isRunning);
+                //EchoR(string.Format("Script state: {0}", isRunning ? "Running" : "Stopped"));
             }
         }
 

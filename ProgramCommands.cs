@@ -35,6 +35,7 @@ namespace IngameScript
             {
                 Runtime.UpdateFrequency = FREQUENCY;
             }
+            isRunning = true;
         }
 
         /// <summary>

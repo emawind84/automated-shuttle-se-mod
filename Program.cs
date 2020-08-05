@@ -154,7 +154,10 @@ namespace IngameScript
         /// It indicates that batteries are really low capacity
         /// </summary>
         bool criticalBatteryCapacityDetected = false;
-
+        /// <summary>
+        /// Script state
+        /// </summary>
+        bool isRunning = false;
         /// <summary>
         /// The current waypoint
         /// </summary>
@@ -305,11 +308,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 1;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 2;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-07-30";
+        const string VERSION_UPDATE = "2020-08-05";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>
@@ -379,8 +382,11 @@ namespace IngameScript
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;
-            //Runtime.UpdateFrequency = FREQUENCY;
-
+            if (isRunning)
+            {
+                Runtime.UpdateFrequency = FREQUENCY;
+            }
+            
             EchoR(string.Format("Compiled {0} {1}", SCRIPT_NAME, VERSION_NICE_TEXT));
 
             // format terminal info text
@@ -389,7 +395,9 @@ namespace IngameScript
 
         public void Save()
         {
-            Storage = currentWaypoint?.Name;
+            Storage = string.Join(";",
+                currentWaypoint?.Name ?? "",
+                isRunning.ToString());
         }
 
         public void Main(string argument, UpdateType updateSource)
@@ -500,6 +508,9 @@ namespace IngameScript
             {
                 terminalCycle.Dispose();
             }
+
+            // save the state of the script
+            Save();
         }
         
     }
