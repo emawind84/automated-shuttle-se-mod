@@ -41,6 +41,8 @@ namespace IngameScript
 
         const string DisplayTerminalTag = ScriptPrefixTag + ":DisplayTerminal";
 
+        const string DebugTerminalTag = ScriptPrefixTag + ":DebugTerminal";
+
         const string DockingScriptTag = ScriptPrefixTag + ":DockingScript";
 
         const string EmergencyPowerTag = ScriptPrefixTag + ":EmergencyPower";
@@ -174,23 +176,29 @@ namespace IngameScript
         /// The connector to use for docking
         /// </summary>
         IMyShipConnector _dockingConnector;
-
-        IMySensorBlock _sensor;
-
-        IMyTerminalBlock _referenceBlock;
-
         /// <summary>
-        /// The ship position recorded after each step
+        /// The sensor used to detect grids around the ship
+        /// </summary>
+        IMySensorBlock _sensor;
+        /// <summary>
+        /// The block used to measure the position of the ship
+        /// </summary>
+        IMyTerminalBlock _referenceBlock;
+        /// <summary>
+        /// The ship position recorded after each cycle
         /// </summary>
         Vector3D lastShipPosition = Vector3D.Zero;
-
         /// <summary>
         /// Defines the terminalCycle.
         /// </summary>
         IEnumerator<bool> terminalCycle;
-
+        /// <summary>
+        /// Display more dense information for debugging
+        /// </summary>
         DebugTerminal debugTerminals;
-
+        /// <summary>
+        /// Display friendly information for the player
+        /// </summary>
         DisplayTerminal informationTerminals;
 
         IEnumerator<bool> subProcessStepCycle;
@@ -351,7 +359,7 @@ namespace IngameScript
             UpdateLastShipPosition();
 
             debugTerminals = new DebugTerminal(this);
-            informationTerminals = new DisplayTerminal(this, blk => MyIni.HasSection(blk.CustomData, DisplayTerminalTag) && CollectSameConstruct(blk));
+            informationTerminals = new DisplayTerminal(this);
             terminalCycle = SetTerminalCycle();
             subProcessStepCycle = SetSubProcessStepCycle();
 
@@ -369,15 +377,15 @@ namespace IngameScript
                 ProcessStepMoveAwayFromDock,            // 8
                 ProcessStepResetThrustOverride,         // 9
                 ProcessStepGoToWaypoint,                // 10
-                //ProcessStepDisableBroadcasting,       // 11
-                ProcessStepTravelToWaypoint,            // 12
-                //ProcessStepEnableBroadcasting,          // 13
-                ProcessStepDockToStation,               // 14
-                ProcessStepWaitDockingCompletion,       // 15
-                ProcessStepResetThrustOverride,         // 16
-                ProcessStepDoAfterDocking,              // 17
-                ProcessStepDisconnectConnector,         // 18
-                ProcessStepWaitAtWaypoint,              // 19
+                //ProcessStepDisableBroadcasting,       
+                ProcessStepTravelToWaypoint,            // 11
+                //ProcessStepEnableBroadcasting,        
+                ProcessStepDockToStation,               // 12
+                ProcessStepWaitDockingCompletion,       // 13
+                ProcessStepResetThrustOverride,         // 14
+                ProcessStepDoAfterDocking,              // 15
+                ProcessStepDisconnectConnector,         // 16
+                ProcessStepWaitAtWaypoint,              // 17
                 //ProcessStepWaitUndefinetely
             };
 

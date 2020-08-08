@@ -51,7 +51,6 @@ namespace IngameScript
                 || DockingConnector.Status == MyShipConnectorStatus.Connectable)
             {
                 EchoR("Skipping: ship undocked");
-                previousStepEndTime = DateTime.Now;
                 processStep++;
                 throw new PutOffExecutionException();
             }
@@ -88,6 +87,15 @@ namespace IngameScript
             }
         }
 
+        void SkipIfNoSensor()
+        {
+            if (Sensor == null)
+            {
+                processStep++;
+                throw new PutOffExecutionException();
+            }
+        }
+
         void PrepareSensor()
         {
             if (Sensor != null)
@@ -97,7 +105,8 @@ namespace IngameScript
                 Sensor.DetectOwner = true;
                 Sensor.DetectStations = true;
                 Sensor.DetectLargeShips = true;
-                Sensor.DetectSubgrids = true;
+                Sensor.DetectAsteroids = true;
+                Sensor.DetectSubgrids = false;  // we don't want to detect grids connected with rotors or connectors
                 Sensor.DetectPlayers = false;
                 Sensor.RightExtend = 50;
                 Sensor.LeftExtend = 50;
@@ -165,9 +174,14 @@ namespace IngameScript
             if (customDataWaypoints != "")
             {
                 string[] _waypoints = customDataWaypoints.Split(',');
-                for (int i = 0; i < _waypoints.Count(); i++)
+                foreach (string waypointData in _waypoints)
                 {
-                    waypoints.Add(new Waypoint(_waypoints[i]));
+                    MyWaypointInfo waypointInfo;
+                    if (MyWaypointInfo.TryParse(waypointData, out waypointInfo))
+                    {
+                        var w = new Waypoint(waypointInfo.Name, waypointInfo.Coords);
+                        waypoints.Add(w);
+                    }
                 }
             }
         }
@@ -205,16 +219,17 @@ namespace IngameScript
                 collect = CollectAll;
             }
             var entities = FindDetectedGrids().FindAll(blk => collect(blk));
-
+            
             foreach (var entity in entities)
             {
                 var dir = Vector3D.Normalize(entity.Position - ReferenceBlock.GetPosition());
                 var dot = Vector3D.Dot(dir, Vector3D.Normalize(directionalVector));
                 var radians = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
                 var degrees = MathHelper.ToDegrees(radians);
-
+                
                 if (degrees > 0 && degrees < 65)
                 {
+                    //EchoR(string.Format("Grid detected: {0}, degrees {1}, type: {2}", entity.Name, degrees, entity.Type));
                     return true;
                 }
             }

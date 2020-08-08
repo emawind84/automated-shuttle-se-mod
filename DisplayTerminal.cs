@@ -42,7 +42,7 @@ namespace IngameScript
                     this.collect = collect;
                 } else
                 {
-                    this.collect = blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag);
+                    this.collect = blk => MyIni.HasSection(blk.CustomData, DisplayTerminalTag);
                 }
             }
 
@@ -56,7 +56,7 @@ namespace IngameScript
 
                 MyIni ini = new MyIni();
                 ini.TryParse(block.CustomData);
-                var display = ini.Get(ScriptPrefixTag, "Display").ToInt16();
+                var display = ini.Get(DisplayTerminalTag, "Display").ToInt16();
 
                 IMyTextSurface lcd;
                 if (block is IMyTextSurfaceProvider)

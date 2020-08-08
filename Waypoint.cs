@@ -30,28 +30,13 @@ namespace IngameScript
 
             public bool WaitAtWaypoint { get; }
 
-            public Waypoint(string name, Vector3D coords, bool waitAtWaypoint)
+            public Waypoint(string name, Vector3D coords, bool waitAtWaypoint = true)
             {
                 this.Coords = coords;
                 this.WaitAtWaypoint = waitAtWaypoint;
                 this.Name = name;
             }
-
-            public Waypoint(string waypointData)
-            {
-                //GPS: WAYPOINT 1:227004.83:227029.62:227020.38:
-                MyWaypointInfo waypointInfo;
-                if (MyWaypointInfo.TryParse(waypointData, out waypointInfo))
-                {
-                    this.Name = waypointInfo.Name;
-                    this.Coords = waypointInfo.Coords;
-                    this.WaitAtWaypoint = !waypointData.Contains(":nowait");
-                }
-                else
-                {
-                    throw new PutOffExecutionException();
-                }
-            }
+            
         }
     }
 }

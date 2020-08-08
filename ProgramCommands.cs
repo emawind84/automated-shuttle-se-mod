@@ -43,6 +43,7 @@ namespace IngameScript
         /// </summary>
         void Stop()
         {
+            isRunning = false;
             Runtime.UpdateFrequency = UpdateFrequency.None;
         }
 
@@ -54,6 +55,7 @@ namespace IngameScript
             ZeroThrustOverride();
             ResetBatteryMode();
             ResetAutopilot();
+            isRunning = false;
             Runtime.UpdateFrequency = UpdateFrequency.None;
             EchoR("System shut down");
         }
@@ -74,6 +76,7 @@ namespace IngameScript
         {
             var step = int.Parse(_commandLine.Argument(1));
             processStep = step;
+            isRunning = false;
             Runtime.UpdateFrequency = UpdateFrequency.Once;
         }
 
@@ -81,6 +84,11 @@ namespace IngameScript
         {
             processStep++;
             Runtime.UpdateFrequency = UpdateFrequency.Once;
+        }
+
+        void AddWaypoint()
+        {
+            // wip
         }
 
         void Test()
