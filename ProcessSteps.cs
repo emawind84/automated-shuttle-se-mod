@@ -276,7 +276,7 @@ namespace IngameScript
 
         void ProcessStepDockToStation()
         {
-            SkipIfNoGridNearby();
+            //SkipIfNoGridNearby(); if the ship is too far from the grid this step is not goind to be executed
             SkipIfDocked();
 
             // start docking
@@ -304,7 +304,7 @@ namespace IngameScript
 
         void ProcessStepWaitDockingCompletion()
         {
-            SkipIfNoGridNearby();
+            //SkipIfNoGridNearby();
             SkipOnTimeout(30);
             
             if (DockingConnector.Status == MyShipConnectorStatus.Connectable

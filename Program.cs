@@ -23,6 +23,8 @@ namespace IngameScript
     {
         const string ScriptPrefixTag = "SHUTTLE";
 
+        const string StateBroadcastTag = "SHUTTLE_STATE";
+
         const string ReferenceBlockTag = ScriptPrefixTag + ":ReferencePoint";
 
         const string DisableOnEmergencyTag = ScriptPrefixTag + ":DisableOnEmergency";
@@ -353,6 +355,8 @@ namespace IngameScript
             _commands["stop"] = Stop;
             _commands["step"] = ExecuteStep;
             _commands["nextstep"] = NextStep;
+            _commands["addwaypoint"] = AddWaypoint;
+            _commands["nextwaypoint"] = NextWaypoint;
 
             RetrieveCustomSetting();
             RetrieveStorage();

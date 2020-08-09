@@ -24,8 +24,6 @@ namespace IngameScript
     {
         delegate bool CollectDetectedBlocks(MyDetectedEntityInfo blk);
 
-        //delegate bool CollectBlocks(IMyTerminalBlock blk);
-
         T FindFirstBlockOfType<T>(Func<T, bool> collect) where T : class, IMyTerminalBlock
         {
             var blocks = new List<T>();

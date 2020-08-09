@@ -361,11 +361,11 @@ namespace IngameScript
                 lastShipPosition,
                 informationTerminals.Text
             );
-            string STATE_BROADCAST_TAG = "SHUTTLE_STATE";
-            IGC.SendBroadcastMessage(STATE_BROADCAST_TAG, message);
             
+            IGC.SendBroadcastMessage(StateBroadcastTag, message);
+
             return true;
         }
-
+        
     }
 }

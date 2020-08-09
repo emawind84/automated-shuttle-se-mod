@@ -88,7 +88,23 @@ namespace IngameScript
 
         void AddWaypoint()
         {
-            // wip
+            var waypointData = int.Parse(_commandLine.Argument(1)).ToString();
+            MyWaypointInfo waypointInfo;
+            if (MyWaypointInfo.TryParse(waypointData, out waypointInfo))
+            {
+                var w = new Waypoint(waypointInfo.Name, waypointInfo.Coords);
+                waypoints.Add(w);
+                EchoR($"New waypoint added: {w}");
+            } else
+            {
+                EchoR("Waypoint not recognized");
+            }
+        }
+
+        void NextWaypoint()
+        {
+            currentWaypoint = GetNextWaypoint();
+            processStep = 0;
         }
 
         void Test()
