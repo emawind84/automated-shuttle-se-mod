@@ -80,16 +80,18 @@ namespace IngameScript
             if (remainingCapacity < MinBatteryCapacity
                 || (remainingCapacity < ChargedBatteryCapacity && lowBatteryCapacityDetected))
             {
+                lowBatteryCapacityDetected = true;
+                var batteriesToCharge = Convert.ToInt16(batteries.Count / 2 + 0.5f);
+                foreach (var battery in batteries.Skip(batteriesToCharge))
+                {
+                    battery.ChargeMode = ChargeMode.Auto;
+                }
+                foreach (var battery in batteries.Take(batteriesToCharge)) {
+                    battery.ChargeMode = ChargeMode.Recharge;
+                }
+
                 EchoR(string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0)));
                 informationTerminals.Text = string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0));
-
-                lowBatteryCapacityDetected = true;
-                foreach (var battery in batteries.Take(batteries.Count / 2)) {
-                    if (battery.CurrentStoredPower / battery.MaxStoredPower < ChargedBatteryCapacity)
-                    {
-                        battery.ChargeMode = ChargeMode.Recharge;
-                    }
-                }
             }
             else
             {
@@ -320,7 +322,7 @@ namespace IngameScript
 
         void ProcessStepDoAfterDocking()
         {
-            SkipIfNoGridNearby();
+            //SkipIfNoGridNearby();  // if the ship is connected the station is not counted
 
             var timerBlocks = new List<IMyTimerBlock>();
             GridTerminalSystem.GetBlocksOfType(timerBlocks, blk => MyIni.HasSection(blk.CustomData, TriggerAfterDockingTag) && CollectSameConstruct(blk));

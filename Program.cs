@@ -386,9 +386,9 @@ namespace IngameScript
                 //ProcessStepEnableBroadcasting,        
                 ProcessStepDockToStation,               // 12
                 ProcessStepWaitDockingCompletion,       // 13
+                ProcessStepDisconnectConnector,         // 16
                 ProcessStepResetThrustOverride,         // 14
                 ProcessStepDoAfterDocking,              // 15
-                ProcessStepDisconnectConnector,         // 16
                 ProcessStepWaitAtWaypoint,              // 17
                 //ProcessStepWaitUndefinetely
             };
