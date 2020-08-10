@@ -68,6 +68,11 @@ namespace IngameScript
             }
         }
 
+        int SortByStoredPower(IMyBatteryBlock b1, IMyBatteryBlock b2)
+        {
+            return b1.CurrentStoredPower.CompareTo(b2.CurrentStoredPower);
+        }
+
         /// <summary>
         /// Thrown when we detect that we have taken up too much processing time
         /// and need to put off the rest of the exection until the next call.

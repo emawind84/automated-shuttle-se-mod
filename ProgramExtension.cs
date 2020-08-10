@@ -285,6 +285,7 @@ namespace IngameScript
         bool SubProcessCheckRemainingBatteryCapacity(StringWrapper log) {
             var batteries = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType(batteries, CollectSameConstruct);
+
             float remainingCapacity = RemainingBatteryCapacity(batteries);
             if (remainingCapacity < CriticalBatteryCapacity) {
                 log.Append("Critical power detected");

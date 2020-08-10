@@ -67,6 +67,8 @@ namespace IngameScript
 
             var batteries = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType(batteries, CollectSameConstruct);
+            batteries.Sort(SortByStoredPower);
+            
             if (batteries.Count() == 0)
             {
                 processStep++;
@@ -82,7 +84,7 @@ namespace IngameScript
                 informationTerminals.Text = string.Format("Charging batteries: {0}%", Math.Round(remainingCapacity * 100, 0));
 
                 lowBatteryCapacityDetected = true;
-                foreach (var battery in batteries) {
+                foreach (var battery in batteries.Take(batteries.Count / 2)) {
                     if (battery.CurrentStoredPower / battery.MaxStoredPower < ChargedBatteryCapacity)
                     {
                         battery.ChargeMode = ChargeMode.Recharge;
