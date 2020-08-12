@@ -79,7 +79,7 @@ namespace IngameScript
         /// <summary>
         /// Defines the FREQUENCY.
         /// </summary>
-        const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
+        const UpdateFrequency FREQUENCY = UpdateFrequency.Update10;
         /// <summary>
         /// How often the script should update in milliseconds
         /// </summary>
@@ -230,7 +230,7 @@ namespace IngameScript
         {
             get
             {
-                if (IsCorrupt(_remoteControl))
+                if (totalCallCount % 10 == 0 && IsCorrupt(_remoteControl))
                 {
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
                     GridTerminalSystem.GetBlocksOfType(blocks, blk => CollectSameConstruct(blk) && blk.IsFunctional);
@@ -243,7 +243,7 @@ namespace IngameScript
                 
                 if (_remoteControl == null)
                 {
-                    EchoR("No working remote control found on the ship.");
+                    EchoR("Waiting for remote control");
                     throw new PutOffExecutionException();
                 }
                 return _remoteControl;
@@ -254,7 +254,7 @@ namespace IngameScript
         {
             get
             {
-                if (IsCorrupt(_dockingConnector))
+                if (totalCallCount % 10 == 0 && IsCorrupt(_dockingConnector))
                 {
                     _dockingConnector = FindFirstBlockOfType<IMyShipConnector>(
                         blk => CollectSameConstruct(blk) && 
@@ -264,7 +264,7 @@ namespace IngameScript
 
                 if (_dockingConnector == null)
                 {
-                    EchoR("No working connector found on the ship.");
+                    EchoR("Waiting for connector");
                     throw new PutOffExecutionException();
                 }
                 return _dockingConnector;
@@ -275,7 +275,7 @@ namespace IngameScript
         {
             get
             {
-                if (IsCorrupt(_sensor))
+                if (totalCallCount % 10 == 0 && IsCorrupt(_sensor))
                 {
                     _sensor = FindFirstBlockOfType<IMySensorBlock>(
                         blk => CollectSameConstruct(blk) && 
@@ -285,7 +285,7 @@ namespace IngameScript
 
                 if (_sensor == null)
                 {
-                    EchoR("No working sensor found on the ship.");
+                    EchoR("Waiting for sensor");
                 }
                 return _sensor;
             }
@@ -295,7 +295,7 @@ namespace IngameScript
         {
             get
             {
-                if (IsCorrupt(_referenceBlock))
+                if (totalCallCount % 10 == 0 && IsCorrupt(_referenceBlock))
                 {
                     var blocks = new List<IMyTerminalBlock>();
                     _referenceBlock = FindFirstBlockOfType<IMyTerminalBlock>(
@@ -361,7 +361,7 @@ namespace IngameScript
             RetrieveCustomSetting();
             RetrieveStorage();
             UpdateLastShipPosition();
-
+            
             debugTerminals = new DebugTerminal(this);
             informationTerminals = new DisplayTerminal(this);
             terminalCycle = SetTerminalCycle();

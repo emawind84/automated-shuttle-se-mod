@@ -96,24 +96,33 @@ namespace IngameScript
             }
         }
 
+        void RunEveryCycles(int cycles)
+        {
+            if (currentCycleStartTime - previousStepEndTime > TimeSpan.FromMilliseconds(100) && totalCallCount % cycles != 0)
+            {
+                throw new PutOffExecutionException();
+            }
+        }
+
         void PrepareSensor()
         {
-            if (Sensor != null)
+            var _sensor = Sensor;
+            if (_sensor != null)
             {
-                Sensor.Enabled = true;
-                Sensor.DetectFriendly = true;
-                Sensor.DetectOwner = true;
-                Sensor.DetectStations = true;
-                Sensor.DetectLargeShips = true;
-                Sensor.DetectAsteroids = true;
-                Sensor.DetectSubgrids = false;  // we don't want to detect grids connected with rotors or connectors
-                Sensor.DetectPlayers = false;
-                Sensor.RightExtend = 50;
-                Sensor.LeftExtend = 50;
-                Sensor.FrontExtend = 50;
-                Sensor.BackExtend = 50;
-                Sensor.BottomExtend = 50;
-                Sensor.TopExtend = 50;
+                _sensor.Enabled = true;
+                _sensor.DetectFriendly = true;
+                _sensor.DetectOwner = true;
+                _sensor.DetectStations = true;
+                _sensor.DetectLargeShips = true;
+                _sensor.DetectAsteroids = true;
+                _sensor.DetectSubgrids = false;  // we don't want to detect grids connected with rotors or connectors
+                _sensor.DetectPlayers = false;
+                _sensor.RightExtend = 50;
+                _sensor.LeftExtend = 50;
+                _sensor.FrontExtend = 50;
+                _sensor.BackExtend = 50;
+                _sensor.BottomExtend = 50;
+                _sensor.TopExtend = 50;
             }
         }
 
@@ -219,10 +228,11 @@ namespace IngameScript
                 collect = CollectAll;
             }
             var entities = FindDetectedGrids().FindAll(blk => collect(blk));
-            
+            var referenceBlock = ReferenceBlock;
+
             foreach (var entity in entities)
             {
-                var dir = Vector3D.Normalize(entity.Position - ReferenceBlock.GetPosition());
+                var dir = Vector3D.Normalize(entity.Position - referenceBlock.GetPosition());
                 var dot = Vector3D.Dot(dir, Vector3D.Normalize(directionalVector));
                 var radians = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
                 var degrees = MathHelper.ToDegrees(radians);
@@ -246,14 +256,15 @@ namespace IngameScript
         void ResetBatteryMode()
         {
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, battery => MyIni.HasSection(battery.CustomData, ScriptPrefixTag));
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsWorking);
             batteries.ForEach(battery => battery.ChargeMode = ChargeMode.Auto);
         }
 
         void ResetAutopilot()
         {
-            RemoteControl.ClearWaypoints();
-            RemoteControl.SetAutoPilotEnabled(false);
+            var _rc = RemoteControl;
+            _rc?.ClearWaypoints();
+            _rc?.SetAutoPilotEnabled(false);
         }
 
         /// <summary>
@@ -284,31 +295,34 @@ namespace IngameScript
 
         bool SubProcessCheckRemainingBatteryCapacity(StringWrapper log) {
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, CollectSameConstruct);
-
-            float remainingCapacity = RemainingBatteryCapacity(batteries);
-            if (remainingCapacity < CriticalBatteryCapacity) {
-                log.Append("Critical power detected");
-                criticalBatteryCapacityDetected = true;
-                var timerblocks = new List<IMyTimerBlock>();
-                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnCriticalCurrentDetectedTag));
-                timerblocks.ForEach(tb => tb.Trigger());
-
-                // disable blocks with DisableOnEmergencyTag
-                EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
-            }
-            else
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsWorking);
+            if (batteries.Count() > 0)
             {
-                criticalBatteryCapacityDetected = false;
-                var timerblocks = new List<IMyTimerBlock>();
-                GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnNormalCurrentReestablishedTag));
-                timerblocks.ForEach(tb => tb.Trigger());
+                float remainingCapacity = RemainingBatteryCapacity(batteries);
+                if (remainingCapacity < CriticalBatteryCapacity)
+                {
+                    log.Append("Critical power detected");
+                    criticalBatteryCapacityDetected = true;
+                    var timerblocks = new List<IMyTimerBlock>();
+                    GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnCriticalCurrentDetectedTag));
+                    timerblocks.ForEach(tb => tb.Trigger());
 
-                // enable blocks with DisableOnEmergencyTag
-                EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
+                    // disable blocks with DisableOnEmergencyTag
+                    EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
+                }
+                else
+                {
+                    criticalBatteryCapacityDetected = false;
+                    var timerblocks = new List<IMyTimerBlock>();
+                    GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnNormalCurrentReestablishedTag));
+                    timerblocks.ForEach(tb => tb.Trigger());
+
+                    // enable blocks with DisableOnEmergencyTag
+                    EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
+                }
+
+                log.Append(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
             }
-
-            log.Append(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
             return true;
         }
 

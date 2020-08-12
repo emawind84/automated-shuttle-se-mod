@@ -63,10 +63,11 @@ namespace IngameScript
 
         void ProcessStepRechargeBatteries()
         {
+            RunEveryCycles(2);
             SkipIfNotConnected();
 
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, CollectSameConstruct);
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsWorking);
             batteries.Sort(SortByStoredPower);
             
             if (batteries.Count() == 0)
@@ -131,10 +132,11 @@ namespace IngameScript
         void ProcessStepUndockShip()
         {
             SkipIfNoGridNearby();
-            DockingConnector.Disconnect();
-            DockingConnector.PullStrength = 0;
 
-            if (DockingConnector.Status != MyShipConnectorStatus.Connected)
+            var _dc = DockingConnector;
+            _dc.Disconnect();
+            _dc.PullStrength = 0;
+            if (_dc.Status != MyShipConnectorStatus.Connected)
             {
                 processStep++;
             }
@@ -143,32 +145,33 @@ namespace IngameScript
         void ProcessStepMoveAwayFromDock()
         {
             SkipIfNoGridNearby();
-            SkipIfNoSensor();
+            //SkipIfNoSensor();
 
+            var _dc = DockingConnector;
             var thrusters = new List<IMyThrust>();
-            if (!IsObstructed(DockingConnector.WorldMatrix.Backward))
+            if (!IsObstructed(_dc.WorldMatrix.Backward))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Forward);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Forward);
             }
-            else if (!IsObstructed(DockingConnector.WorldMatrix.Forward))
+            else if (!IsObstructed(_dc.WorldMatrix.Forward))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Backward);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Backward);
             }
-            else if (!IsObstructed(DockingConnector.WorldMatrix.Left))
+            else if (!IsObstructed(_dc.WorldMatrix.Left))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Right);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Right);
             }
-            else if (!IsObstructed(DockingConnector.WorldMatrix.Right))
+            else if (!IsObstructed(_dc.WorldMatrix.Right))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Left);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Left);
             }
-            else if (!IsObstructed(DockingConnector.WorldMatrix.Up))
+            else if (!IsObstructed(_dc.WorldMatrix.Up))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Down);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Down);
             }
-            else if (!IsObstructed(DockingConnector.WorldMatrix.Down))
+            else if (!IsObstructed(_dc.WorldMatrix.Down))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Up);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Up);
             }
             else
             {
@@ -209,7 +212,7 @@ namespace IngameScript
         {
             SkipIfDocked();
 
-            IMyRemoteControl controlBlock = RemoteControl;
+            var controlBlock = RemoteControl;
             controlBlock.SetCollisionAvoidance(true);
             controlBlock.FlightMode = FlightMode.OneWay;
             controlBlock.SetDockingMode(false);
@@ -267,15 +270,15 @@ namespace IngameScript
         void ProcessStepTravelToWaypoint()
         {
             SkipIfDocked();
-
+            var _rc = RemoteControl;
             double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
-            if (Math.Round(RemoteControl.GetShipSpeed(), 0) == 0 && distanceFromWaypoint < 100)
+            if (Math.Round(_rc.GetShipSpeed(), 0) == 0 && distanceFromWaypoint < 100)
             {
-                RemoteControl.SetAutoPilotEnabled(false);  // might be still enabled and we want it disabled before the next step
+                _rc.SetAutoPilotEnabled(false);  // might be still enabled and we want it disabled before the next step
                 processStep++;
             }
 
-            informationTerminals.Text = string.Format("Arriving at {0} in {1}s", currentWaypoint.Name, Math.Round(distanceFromWaypoint / RemoteControl.GetShipSpeed(), 0));
+            informationTerminals.Text = string.Format("Arriving at {0} in {1}s", currentWaypoint.Name, Math.Round(distanceFromWaypoint / _rc.GetShipSpeed(), 0));
         }
 
         void ProcessStepDockToStation()
@@ -310,9 +313,8 @@ namespace IngameScript
         {
             //SkipIfNoGridNearby();
             SkipOnTimeout(30);
-            
-            if (DockingConnector.Status == MyShipConnectorStatus.Connectable
-                || DockingConnector.Status == MyShipConnectorStatus.Connected)
+            var _dc = DockingConnector;
+            if (_dc.Status == MyShipConnectorStatus.Connectable || _dc.Status == MyShipConnectorStatus.Connected)
             {
                 processStep++;
             }
@@ -337,8 +339,9 @@ namespace IngameScript
 
         void ProcessStepDisconnectConnector()
         {
-            DockingConnector.Disconnect();
-            if (DockingConnector.Status == MyShipConnectorStatus.Connected)
+            var _dc = DockingConnector;
+            _dc.Disconnect();
+            if (_dc.Status == MyShipConnectorStatus.Connected)
             {
                 EchoR("Connector still connected");
                 throw new PutOffExecutionException();
@@ -348,9 +351,10 @@ namespace IngameScript
 
         void ProcessStepConnectConnector()
         {
-            if (DockingConnector.Status == MyShipConnectorStatus.Connectable)
+            var _dc = DockingConnector;
+            if (_dc.Status == MyShipConnectorStatus.Connectable)
             {
-                DockingConnector.Connect();
+                _dc.Connect();
             }
             processStep++;
         }
@@ -370,60 +374,9 @@ namespace IngameScript
 
         void ProcessStepWaitUndefinetely()
         {
-            var thrusters = new List<IMyThrust>();
-            GridTerminalSystem.GetBlocksOfType(thrusters);
-            thrusters.ForEach(thruster => {
-                thruster.ShowOnHUD = false;
-                EchoR($"{thruster.CurrentThrust}  -  {thruster.ThrustOverride}");
-            });
-            if (!IsObstructed(DockingConnector.WorldMatrix.Backward))
-            {
-                EchoR("Backward obstructed");
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Forward);
-                thrusters.ForEach(thruster => {
-                    thruster.ShowOnHUD = true;
-                });
-            }
-            if (!IsObstructed(DockingConnector.WorldMatrix.Forward))
-            {
-                EchoR("Forward obstructed");
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Backward);
-                thrusters.ForEach(thruster => {
-                    thruster.ShowOnHUD = true;
-                });
-            }
-            if (!IsObstructed(DockingConnector.WorldMatrix.Left))
-            {
-                EchoR("Left obstructed");
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Right);
-                thrusters.ForEach(thruster => {
-                    thruster.ShowOnHUD = true;
-                });
-            }
-            if (!IsObstructed(DockingConnector.WorldMatrix.Right))
-            {
-                EchoR("Right obstructed");
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Left);
-                thrusters.ForEach(thruster => {
-                    thruster.ShowOnHUD = true;
-                });
-            }
-            if (!IsObstructed(DockingConnector.WorldMatrix.Up))
-            {
-                EchoR("Up obstructed");
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Down);
-                thrusters.ForEach(thruster => {
-                    thruster.ShowOnHUD = true;
-                });
-            }
-            if (!IsObstructed(DockingConnector.WorldMatrix.Down))
-            {
-                EchoR("Down obstructed");
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == DockingConnector.WorldMatrix.Up);
-                thrusters.ForEach(thruster => {
-                    thruster.ShowOnHUD = true;
-                });
-            }
+            RunEveryCycles(2);
+
+            EchoR("Running step now!");
         }
 
         #endregion

@@ -90,7 +90,7 @@ namespace IngameScript
             {
                 EchoR = program.EchoR;
             }
-            
+
             public StringWrapper GetLog(int index)
             {
                 if (_logs.Count() <= index)
@@ -108,7 +108,10 @@ namespace IngameScript
                 return stringWrapper;
             }
 
-            public void Print() => EchoR(string.Join("\n", _logs.FindAll(log => log.hasText())));
+            public void Print() {
+                var value = string.Join("\n", _logs.FindAll(log => log.HasText()));
+                if (value != "") EchoR(value);
+            }
         }
 
         class StringWrapper
@@ -128,7 +131,7 @@ namespace IngameScript
                 return this;
             }
 
-            public bool hasText()
+            public bool HasText()
             {
                 return _text != "";
             }
