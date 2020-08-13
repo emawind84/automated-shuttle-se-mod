@@ -98,7 +98,7 @@ namespace IngameScript
 
         void RunEveryCycles(int cycles)
         {
-            if (currentCycleStartTime - previousStepEndTime > TimeSpan.FromMilliseconds(100) && totalCallCount % cycles != 0)
+            if (DateTime.Now - previousStepEndTime > TimeSpan.FromMilliseconds(100) && totalCallCount % cycles != 0)
             {
                 throw new PutOffExecutionException();
             }
