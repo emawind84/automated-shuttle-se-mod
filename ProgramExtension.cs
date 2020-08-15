@@ -240,7 +240,7 @@ namespace IngameScript
                 
                 if (degrees > 0 && degrees < 65)
                 {
-                    EchoR(string.Format("Grid detected: {0}, degrees {1}, type: {2}", entity.Name, degrees, entity.Type));
+                    //EchoR(string.Format("Grid detected: {0}, degrees {1}, type: {2}", entity.Name, degrees, entity.Type));
                     return true;
                 }
             }
