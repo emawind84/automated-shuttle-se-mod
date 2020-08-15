@@ -285,7 +285,7 @@ namespace IngameScript
         {
             //SkipIfNoGridNearby(); if the ship is too far from the grid this step is not goind to be executed
             SkipIfDocked();
-
+            
             // start docking
             var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(blk => MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsWorking);
             if (dockingScript == null)
@@ -313,6 +313,13 @@ namespace IngameScript
         {
             //SkipIfNoGridNearby();
             SkipOnTimeout(30);
+
+            //var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(blk => MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsRunning);
+            //var velocityVector = RemoteControl.GetShipVelocities().LinearVelocity;
+            //if (IsObstructed(velocityVector, blk => blk.Type == MyDetectedEntityType.SmallGrid))
+            //{
+            //}
+
             var _dc = DockingConnector;
             if (_dc.Status == MyShipConnectorStatus.Connectable || _dc.Status == MyShipConnectorStatus.Connected)
             {
@@ -374,9 +381,15 @@ namespace IngameScript
 
         void ProcessStepWaitUndefinetely()
         {
-            RunEveryCycles(2);
+            //RunEveryCycles(2);
+            var velocity = RemoteControl.GetShipVelocities().LinearVelocity;
+            EchoR("" + velocity);
+            var directionalVector = Vector3D.Normalize(lastShipPosition - ReferenceBlock.GetPosition());
+            EchoR("" + directionalVector);
+            var obstructed = IsObstructed(velocity, blk => blk.Type == MyDetectedEntityType.SmallGrid);
+            EchoR("Obstructed: " + obstructed);
 
-            EchoR("Running step now!");
+            //EchoR("Running step now!");
         }
 
         #endregion

@@ -112,17 +112,18 @@ namespace IngameScript
                 _sensor.Enabled = true;
                 _sensor.DetectFriendly = true;
                 _sensor.DetectOwner = true;
+                _sensor.DetectEnemy = true;
                 _sensor.DetectStations = true;
                 _sensor.DetectLargeShips = true;
                 _sensor.DetectAsteroids = true;
                 _sensor.DetectSubgrids = false;  // we don't want to detect grids connected with rotors or connectors
                 _sensor.DetectPlayers = false;
-                _sensor.RightExtend = 50;
-                _sensor.LeftExtend = 50;
-                _sensor.FrontExtend = 50;
-                _sensor.BackExtend = 50;
-                _sensor.BottomExtend = 50;
-                _sensor.TopExtend = 50;
+                //_sensor.RightExtend = 25;
+                //_sensor.LeftExtend = 25;
+                //_sensor.FrontExtend = 25;
+                //_sensor.BackExtend = 25;
+                //_sensor.BottomExtend = 25;
+                //_sensor.TopExtend = 25;
             }
         }
 
@@ -239,7 +240,7 @@ namespace IngameScript
                 
                 if (degrees > 0 && degrees < 65)
                 {
-                    //EchoR(string.Format("Grid detected: {0}, degrees {1}, type: {2}", entity.Name, degrees, entity.Type));
+                    EchoR(string.Format("Grid detected: {0}, degrees {1}, type: {2}", entity.Name, degrees, entity.Type));
                     return true;
                 }
             }
