@@ -83,7 +83,7 @@ namespace IngameScript
                 
                 // Collect this.
                 bool isValidBlock = collect(terminal)
-                    && terminal.IsSameConstructAs(program.Me)
+                    && terminal.IsSameConstructAs(Program.Me)
                     && (terminal is IMyTextPanel || terminal is IMyTextSurfaceProvider)
                     && terminal.IsWorking;
 

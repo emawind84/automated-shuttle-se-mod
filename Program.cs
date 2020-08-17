@@ -149,7 +149,7 @@ namespace IngameScript
         /// Stores the output of Echo so we can effectively ignore some calls
         /// without overwriting it.
         /// </summary>
-        public StringBuilder echoOutput = new StringBuilder();
+        public StringBuilder EchoOutput = new StringBuilder();
         /// <summary>
         /// It indicates that batteries need charging
         /// </summary>
@@ -344,7 +344,7 @@ namespace IngameScript
             // init echo wrapper
             EchoR = log =>
             {
-                echoOutput.AppendLine(log);
+                EchoOutput.AppendLine(log);
                 Echo(log);
             };
 
@@ -421,7 +421,7 @@ namespace IngameScript
                     currentCycleStartTime = n;
                 else
                 {
-                    Echo(echoOutput.ToString()); // ensure that output is not lost
+                    Echo(EchoOutput.ToString()); // ensure that output is not lost
                     return;
                 }
             }
@@ -430,7 +430,7 @@ namespace IngameScript
                 currentCycleStartTime = DateTime.Now;
             }
 
-            echoOutput.Clear();
+            EchoOutput.Clear();
 
             // output terminal info
             EchoR(string.Format(scriptUpdateText, ++totalCallCount, currentCycleStartTime.ToString("h:mm:ss tt")));
