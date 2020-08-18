@@ -67,7 +67,7 @@ namespace IngameScript
             SkipIfNotConnected();
 
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsWorking);
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional);
             batteries.Sort(SortByStoredPower);
             
             if (batteries.Count() == 0)

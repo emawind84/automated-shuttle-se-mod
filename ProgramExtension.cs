@@ -257,7 +257,7 @@ namespace IngameScript
         void ResetBatteryMode()
         {
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsWorking);
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk));
             batteries.ForEach(battery => battery.ChargeMode = ChargeMode.Auto);
         }
 
@@ -296,7 +296,7 @@ namespace IngameScript
 
         bool SubProcessCheckRemainingBatteryCapacity(StringWrapper log) {
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsWorking);
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional);
             if (batteries.Count() > 0)
             {
                 float remainingCapacity = RemainingBatteryCapacity(batteries);
