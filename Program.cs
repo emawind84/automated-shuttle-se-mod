@@ -21,6 +21,8 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
+
+        #region mdk preserve
         const string ScriptPrefixTag = "SHUTTLE";
 
         const string StateBroadcastTag = "SHUTTLE_STATE";
@@ -80,6 +82,9 @@ namespace IngameScript
         /// Defines the FREQUENCY.
         /// </summary>
         const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
+
+        #endregion
+
         /// <summary>
         /// How often the script should update in milliseconds
         /// </summary>
