@@ -103,14 +103,14 @@ namespace IngameScript
         /// A wrapper for the <see cref="Echo"/> function that adds the log to the stored log.
         /// This allows the log to be remembered and re-outputted without extra work.
         /// </summary>
-        public Action<string> EchoR;
+        Action<string> EchoR;
 
         #region Script state & storage
 
         /// <summary>
         /// Handle Custom Data settings
         /// </summary>
-        public MyIni _ini = new MyIni();
+        MyIni _ini = new MyIni();
         /// <summary>
         /// Handle script arguments
         /// </summary>
