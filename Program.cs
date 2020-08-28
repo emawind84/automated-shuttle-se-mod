@@ -323,11 +323,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 3;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 4;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-08-13";
+        const string VERSION_UPDATE = "2020-08-24";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>
