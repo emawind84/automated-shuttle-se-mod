@@ -379,17 +379,32 @@ namespace IngameScript
             informationTerminals.Text = string.Format("Departure for {0} in {1}s", GetNextWaypoint()?.Name, Math.Round(remainingSeconds.TotalSeconds, 0));
         }
 
+        int gpsCount = 1;
         void ProcessStepWaitUndefinetely()
         {
             //RunEveryCycles(2);
-            var velocity = RemoteControl.GetShipVelocities().LinearVelocity;
-            EchoR("" + velocity);
-            var directionalVector = Vector3D.Normalize(lastShipPosition - ReferenceBlock.GetPosition());
-            EchoR("" + directionalVector);
-            var obstructed = IsObstructed(velocity, blk => blk.Type == MyDetectedEntityType.SmallGrid);
-            EchoR("Obstructed: " + obstructed);
+            //var velocity = RemoteControl.GetShipVelocities().LinearVelocity;
+            //EchoR("" + velocity);
+            //var directionalVector = Vector3D.Normalize(lastShipPosition - ReferenceBlock.GetPosition());
+            //EchoR("" + directionalVector);
+            //var obstructed = IsObstructed(velocity, blk => blk.Type == MyDetectedEntityType.SmallGrid);
+            //EchoR("Obstructed: " + obstructed);
 
-            //EchoR("Running step now!");
+            Vector3D planetCenterPosition = new Vector3D(0, 0, 0);
+            double planetRadius = 50000;
+
+            var xDirectionalVector = new Vector3D(1, 0, 0);
+            var shipPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - planetCenterPosition);
+            var dot = Vector3D.Dot(shipPlanetDirectionalVector, xDirectionalVector);
+            var radians = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
+            var degrees = MathHelper.ToDegrees(radians);
+
+            var z = 0;
+            var x = planetRadius * Math.Cos(radians);
+            var y = planetRadius * Math.Sin(radians);
+            EchoR($"degrees {degrees}");
+            EchoR($"GPS:#{gpsCount}:{x}:{y}:{z}:#FFF17575:");
+            gpsCount++;
         }
 
         #endregion
