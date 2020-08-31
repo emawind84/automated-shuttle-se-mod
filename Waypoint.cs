@@ -28,12 +28,12 @@ namespace IngameScript
 
             public Vector3D Coords { get; }
 
-            public bool WaitAtWaypoint { get; }
+            public bool StopAtWaypoint { get; }
 
             public Waypoint(string name, Vector3D coords, bool waitAtWaypoint = true)
             {
                 this.Coords = coords;
-                this.WaitAtWaypoint = waitAtWaypoint;
+                this.StopAtWaypoint = waitAtWaypoint;
                 this.Name = name;
             }
             

@@ -81,7 +81,7 @@ namespace IngameScript
         /// <summary>
         /// Defines the FREQUENCY.
         /// </summary>
-        const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
+        const UpdateFrequency FREQUENCY = UpdateFrequency.Update10;
 
         #endregion
 
@@ -267,11 +267,6 @@ namespace IngameScript
                         MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
                 }
 
-                if (_dockingConnector == null)
-                {
-                    EchoR("Waiting for connector");
-                    throw new PutOffExecutionException();
-                }
                 return _dockingConnector;
             }
         }
@@ -288,10 +283,6 @@ namespace IngameScript
                         MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
                 }
 
-                if (_sensor == null)
-                {
-                    EchoR("Waiting for sensor");
-                }
                 return _sensor;
             }
         }

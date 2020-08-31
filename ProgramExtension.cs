@@ -34,21 +34,28 @@ namespace IngameScript
 
         void SkipIfDocked()
         {
-            // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Connected
-                || DockingConnector.Status == MyShipConnectorStatus.Connectable)
+            var connector = DockingConnector;
+            if (connector != null)
             {
-                EchoR("Skipping: ship docked");
-                processStep++;
-                throw new PutOffExecutionException();
+                // check if the ship is connected to a grid
+                if (connector.Status == MyShipConnectorStatus.Connected
+                    || connector.Status == MyShipConnectorStatus.Connectable)
+                {
+                    EchoR("Skipping: ship docked");
+                    processStep++;
+                    throw new PutOffExecutionException();
+                }
             }
         }
 
         void SkipIfNotConnected()
         {
+            var connector = DockingConnector;
+            
             // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Unconnected
-                || DockingConnector.Status == MyShipConnectorStatus.Connectable)
+            if (connector == null || 
+                connector.Status == MyShipConnectorStatus.Unconnected ||
+                connector.Status == MyShipConnectorStatus.Connectable)
             {
                 EchoR("Skipping: ship undocked");
                 processStep++;
@@ -56,9 +63,9 @@ namespace IngameScript
             }
         }
 
-        void SkipIfWaypointWithoutDock()
+        void RunIfStopAtWaypoint()
         {
-            if (!currentWaypoint.WaitAtWaypoint)
+            if (!currentWaypoint.StopAtWaypoint)
             {
                 processStep++;
                 throw new PutOffExecutionException();
@@ -93,6 +100,26 @@ namespace IngameScript
             {
                 processStep++;
                 throw new PutOffExecutionException();
+            }
+        }
+
+        void SkipIfOrbitMode()
+        {
+            processStep++;
+            throw new PutOffExecutionException();
+        }
+
+        void SkipIfCurrentWaypointTooFar()
+        {
+            var remoteBlock = RemoteControl;
+            if (currentWaypoint != null)
+            {
+                float distanceToCurrentWaypoint = Vector3.Distance(ReferenceBlock.GetPosition(), currentWaypoint.Coords);
+                if (distanceToCurrentWaypoint > 1000)
+                {
+                    processStep++;
+                    throw new PutOffExecutionException();
+                }
             }
         }
 
