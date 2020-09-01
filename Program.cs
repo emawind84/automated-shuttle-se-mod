@@ -76,15 +76,15 @@ namespace IngameScript
         /// </summary>
         TimeSpan parkingPeriodAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
         /// <summary>
-        /// 
+        /// Switch to orbit mode or make use of custom waypoints
         /// </summary>
         bool orbitMode = false;
         /// <summary>
-        /// 
+        /// The distance from the center position where the ship will remain for orbit mode
         /// </summary>
         double orbitRadius = DefaultOrbitRadius;
         /// <summary>
-        /// 
+        /// The center position of the orbit
         /// </summary>
         Vector3D orbitCenterPosition = new Vector3D(0, 0, 0);
         /// <summary>
@@ -340,11 +340,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 4;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 5;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-08-24";
+        const string VERSION_UPDATE = "2020-09-02";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>
@@ -403,9 +403,7 @@ namespace IngameScript
                 ProcessStepMoveAwayFromDock,            // 8
                 ProcessStepResetThrustOverride,         // 9
                 ProcessStepGoToWaypoint,                // 10
-                //ProcessStepDisableBroadcasting,       
                 ProcessStepTravelToWaypoint,            // 11
-                //ProcessStepEnableBroadcasting,        
                 ProcessStepDockToStation,               // 12
                 ProcessStepWaitDockingCompletion,       // 13
                 ProcessStepDisconnectConnector,         // 16

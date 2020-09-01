@@ -55,7 +55,7 @@ namespace IngameScript
 
         bool CollectSameConstruct(IMyTerminalBlock block)
         {
-            return block.IsSameConstructAs(Me); ;
+            return block.IsSameConstructAs(Me);
         }
 
         void EnableBlocks(Func<IMyTerminalBlock, bool> collect)
