@@ -25,10 +25,13 @@ namespace IngameScript
 
         void ProcessStepResetControl()
         {
-            ResetBatteryMode();
-            //ResetAutopilot();
-            //ZeroThrustOverride();
-            PrepareSensor();
+            if (!orbitMode)
+            {  // TODO need fix
+                ResetBatteryMode();
+                ResetAutopilot();
+                ZeroThrustOverride();
+                PrepareSensor();
+            }
 
             criticalBatteryCapacityDetected = false;
             lowBatteryCapacityDetected = false;
@@ -38,30 +41,32 @@ namespace IngameScript
 
         void ProcessStepFindNextWaypoint()
         {
-            SkipIfCurrentWaypointTooFar();
+            if (orbitMode)
+            {
+                currentWaypoint = FindNextOrbitWaypoint();
+            }
+            else
+            {
+                if (waypoints.Count() == 0)
+                {
+                    EchoR("No waypoint defined");
+                    throw new PutOffExecutionException();
+                }
+                if (currentWaypoint == null)
+                {
+                    currentWaypoint = waypoints.First();
+                }
+                else
+                {
+                    double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
+                    if (distanceFromWaypoint < 100)
+                    {
+                        currentWaypoint = GetNextWaypoint();
+                    }
 
-            currentWaypoint = new Waypoint("O", FindNextOrbitWaypoint(), false);
+                }
+            }
             
-            //if (waypoints.Count() == 0)
-            //{
-            //    EchoR("No waypoint defined");
-            //    throw new PutOffExecutionException();
-            //}
-            //if (currentWaypoint == null)
-            //{
-            //    currentWaypoint = waypoints.First();
-            //}
-            //else
-            //{
-            //    double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
-
-            //    if (distanceFromWaypoint < 100)
-            //    {
-            //        currentWaypoint = GetNextWaypoint();
-            //    }
-
-            //}
-
             processStep++;
         }
 
@@ -142,9 +147,8 @@ namespace IngameScript
             SkipIfNoGridNearby();
 
             var _dc = DockingConnector;
-            _dc.Disconnect();
-            _dc.PullStrength = 0;
-            if (_dc.Status != MyShipConnectorStatus.Connected)
+            _dc?.Disconnect();
+            if (_dc?.Status != MyShipConnectorStatus.Connected)
             {
                 processStep++;
             }
@@ -154,33 +158,32 @@ namespace IngameScript
         {
             SkipIfOrbitMode();
             SkipIfNoGridNearby();
-            //SkipIfNoSensor();
 
-            var _dc = DockingConnector;
+            var _rb = ReferenceBlock;
             var thrusters = new List<IMyThrust>();
-            if (!IsObstructed(_dc.WorldMatrix.Backward))
+            if (!IsObstructed(_rb.WorldMatrix.Backward))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Forward);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Forward);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Forward))
+            else if (!IsObstructed(_rb.WorldMatrix.Forward))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Backward);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Backward);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Left))
+            else if (!IsObstructed(_rb.WorldMatrix.Left))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Right);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Right);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Right))
+            else if (!IsObstructed(_rb.WorldMatrix.Right))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Left);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Left);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Up))
+            else if (!IsObstructed(_rb.WorldMatrix.Up))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Down);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Down);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Down))
+            else if (!IsObstructed(_rb.WorldMatrix.Down))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Up);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Up);
             }
             else
             {
@@ -222,12 +225,6 @@ namespace IngameScript
             SkipIfDocked();
             
             var controlBlock = RemoteControl;
-            if (currentWaypoint.Coords == controlBlock.CurrentWaypoint.Coords)
-            {
-                processStep++;
-                throw new PutOffExecutionException();
-            }
-
             controlBlock.SetCollisionAvoidance(true);
             controlBlock.FlightMode = FlightMode.OneWay;
             controlBlock.SetDockingMode(false);
@@ -236,9 +233,17 @@ namespace IngameScript
             float distanceToNextWaypoint = Vector3.Distance(ReferenceBlock.GetPosition(), currentWaypoint.Coords);
             if (distanceToNextWaypoint > 50)
             {
-                //controlBlock.ClearWaypoints();
-                controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
-                controlBlock.SetAutoPilotEnabled(true);
+                var waypoints = new List<MyWaypointInfo>();
+                controlBlock.GetWaypointInfo(waypoints);
+                if (waypoints.Count() <= 2)
+                {
+                    MyWaypointInfo cw = controlBlock.CurrentWaypoint;
+                    controlBlock.ClearWaypoints();
+                    if (!cw.IsEmpty())
+                        controlBlock.AddWaypoint(cw);
+                    controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
+                    controlBlock.SetAutoPilotEnabled(true);
+                }
             }
 
             processStep++;
@@ -285,7 +290,7 @@ namespace IngameScript
         void ProcessStepTravelToWaypoint()
         {
             SkipIfDocked();
-            RunIfStopAtWaypoint();
+            RunIfStopAtWaypointEnabled();
 
             var _rc = RemoteControl;
             double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
@@ -302,7 +307,7 @@ namespace IngameScript
         {
             SkipIfOrbitMode();
             SkipIfDocked();
-            //SkipIfNoGridNearby(); if the ship is too far from the grid this step is not goind to be executed
+            //SkipIfNoGridNearby(); if the ship is too far from the grid this step is not going to be executed
 
             // start docking
             var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(blk => MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsWorking);
@@ -333,7 +338,7 @@ namespace IngameScript
             SkipOnTimeout(30);
 
             var _dc = DockingConnector;
-            if (_dc.Status == MyShipConnectorStatus.Connectable || _dc.Status == MyShipConnectorStatus.Connected)
+            if (_dc?.Status == MyShipConnectorStatus.Connectable || _dc?.Status == MyShipConnectorStatus.Connected)
             {
                 processStep++;
             }
@@ -361,8 +366,8 @@ namespace IngameScript
         {
             SkipIfOrbitMode();
             var _dc = DockingConnector;
-            _dc.Disconnect();
-            if (_dc.Status == MyShipConnectorStatus.Connected)
+            _dc?.Disconnect();
+            if (_dc?.Status == MyShipConnectorStatus.Connected)
             {
                 EchoR("Connector still connected");
                 throw new PutOffExecutionException();
@@ -374,7 +379,7 @@ namespace IngameScript
         {
             SkipIfOrbitMode();
             var _dc = DockingConnector;
-            if (_dc.Status == MyShipConnectorStatus.Connectable)
+            if (_dc?.Status == MyShipConnectorStatus.Connectable)
             {
                 _dc.Connect();
             }
@@ -411,46 +416,6 @@ namespace IngameScript
             //EchoR("Obstructed: " + obstructed);
 
             FindNextOrbitWaypoint();
-        }
-
-        private Vector3D FindNextOrbitWaypoint()
-        {
-            Vector3D planetCenterPosition = new Vector3D(0, 0, 0);
-            double planetRadius = 50000;
-
-            var xDirectionalVector = new Vector3D(1, 0, 0);
-            var shipPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - planetCenterPosition);
-            
-            var entityXYAngle = Math.Atan2(shipPlanetDirectionalVector.Y, shipPlanetDirectionalVector.X) 
-                - Math.Atan2(xDirectionalVector.Y, xDirectionalVector.X);
-
-            if (entityXYAngle < 0) entityXYAngle += 2 * Math.PI;
-            entityXYAngle += (Math.PI * 2) / 20;  // next waypoint increment
-            EchoR("Rad: " + entityXYAngle);
-            EchoR("Next position XY: " + MathHelper.ToDegrees(entityXYAngle));
-
-            var z = 0;
-            var x = planetRadius * Math.Cos(entityXYAngle);
-            var y = planetRadius * Math.Sin(entityXYAngle);
-            var gpsCoords = new Vector3D(x, y, z);
-
-            var yDirectionalVector = new Vector3D(0, 1, 0);
-            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - planetCenterPosition);
-            var dot = Vector3D.Dot(yDirectionalVector, entityToPlanetDirectionalVector);
-            var entityAngle = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
-            var degrees = MathHelper.ToDegrees(entityAngle);
-            EchoR("angle " + degrees);
-            //var entityAngle = Math.Atan2(entityToPlanetDirectionalVector.Y, entityToPlanetDirectionalVector.Z)
-            //    - Math.Atan2(yDirectionalVector.Y, yDirectionalVector.Z);
-            //if (entityAngle < 0) entityAngle += 2 * Math.PI;
-            MatrixD xRotationMatrix = new MatrixD(1, 0, 0, 0, Math.Cos(entityAngle), -Math.Sin(entityAngle), 0, Math.Sin(entityAngle), Math.Cos(entityAngle));
-            
-            gpsCoords = Vector3D.Rotate(gpsCoords, xRotationMatrix);
-            gpsCoords = Vector3D.Add(gpsCoords, planetCenterPosition);
-
-            EchoR($"GPS:NextWP:{gpsCoords.X}:{gpsCoords.Y}:{gpsCoords.Z}:#FFF17575:");
-
-            return gpsCoords;
         }
 
         #endregion

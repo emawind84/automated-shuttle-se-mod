@@ -110,8 +110,6 @@ namespace IngameScript
         void Test()
         {
 
-            EchoR(string.Format("### {0}", ReferenceBlock.WorldMatrix.Up == (Vector3D.Zero - ReferenceBlock.WorldMatrix.Down)));
-
             Runtime.UpdateFrequency = UpdateFrequency.None;
         }
 

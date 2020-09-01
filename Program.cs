@@ -51,6 +51,8 @@ namespace IngameScript
 
         const string EmergencyPowerTag = ScriptPrefixTag + ":EmergencyPower";
 
+        const double DefaultOrbitRadius = 50000;
+
         /// <summary>
         /// Safe distance from dock before going to next waypoint
         /// </summary>
@@ -74,6 +76,18 @@ namespace IngameScript
         /// </summary>
         TimeSpan parkingPeriodAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
         /// <summary>
+        /// 
+        /// </summary>
+        bool orbitMode = false;
+        /// <summary>
+        /// 
+        /// </summary>
+        double orbitRadius = DefaultOrbitRadius;
+        /// <summary>
+        /// 
+        /// </summary>
+        Vector3D orbitCenterPosition = new Vector3D(0, 0, 0);
+        /// <summary>
         /// whether to use real time (second between calls) or pure UpdateFrequency
         /// for update frequency
         /// </summary>
@@ -81,7 +95,7 @@ namespace IngameScript
         /// <summary>
         /// Defines the FREQUENCY.
         /// </summary>
-        const UpdateFrequency FREQUENCY = UpdateFrequency.Update10;
+        const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
 
         #endregion
 
@@ -235,7 +249,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_remoteControl))
+                if (totalCallCount % 4 == 0 && IsCorrupt(_remoteControl))
                 {
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
                     GridTerminalSystem.GetBlocksOfType(blocks, blk => CollectSameConstruct(blk) && blk.IsFunctional);
@@ -259,7 +273,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_dockingConnector))
+                if (totalCallCount % 8 == 0 && IsCorrupt(_dockingConnector))
                 {
                     _dockingConnector = FindFirstBlockOfType<IMyShipConnector>(
                         blk => CollectSameConstruct(blk) && 
@@ -275,7 +289,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_sensor))
+                if (totalCallCount % 8 == 0 && IsCorrupt(_sensor))
                 {
                     _sensor = FindFirstBlockOfType<IMySensorBlock>(
                         blk => CollectSameConstruct(blk) && 
@@ -291,7 +305,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_referenceBlock))
+                if (totalCallCount % 8 == 0 && IsCorrupt(_referenceBlock))
                 {
                     var blocks = new List<IMyTerminalBlock>();
                     _referenceBlock = FindFirstBlockOfType<IMyTerminalBlock>(
@@ -366,27 +380,27 @@ namespace IngameScript
             // initialise the process steps we will need to do
             processSteps = new Action[]
             {
-                //ProcessStepResetControl,                // 0
-                //ProcessStepConnectConnector,            // 1
-                //ProcessStepRechargeBatteries,           // 2
-                //ProcessStepDisconnectConnector,         // 3
-                //ProcessStepFindNextWaypoint,            // 4
-                //ProcessStepWaitBeforeUndocking,         // 5
-                //ProcessStepDoBeforeUndocking,           // 6
-                //ProcessStepUndockShip,                  // 7
-                //ProcessStepMoveAwayFromDock,            // 8
-                //ProcessStepResetThrustOverride,         // 9
-                //ProcessStepGoToWaypoint,                // 10
-                ////ProcessStepDisableBroadcasting,       
-                //ProcessStepTravelToWaypoint,            // 11
-                ////ProcessStepEnableBroadcasting,        
-                //ProcessStepDockToStation,               // 12
-                //ProcessStepWaitDockingCompletion,       // 13
-                //ProcessStepDisconnectConnector,         // 16
-                //ProcessStepResetThrustOverride,         // 14
-                //ProcessStepDoAfterDocking,              // 15
-                //ProcessStepWaitAtWaypoint,              // 17
-                ProcessStepWaitUndefinetely
+                ProcessStepResetControl,                // 0
+                ProcessStepConnectConnector,            // 1
+                ProcessStepRechargeBatteries,           // 2
+                ProcessStepDisconnectConnector,         // 3
+                ProcessStepFindNextWaypoint,            // 4
+                ProcessStepWaitBeforeUndocking,         // 5
+                ProcessStepDoBeforeUndocking,           // 6
+                ProcessStepUndockShip,                  // 7
+                ProcessStepMoveAwayFromDock,            // 8
+                ProcessStepResetThrustOverride,         // 9
+                ProcessStepGoToWaypoint,                // 10
+                //ProcessStepDisableBroadcasting,       
+                ProcessStepTravelToWaypoint,            // 11
+                //ProcessStepEnableBroadcasting,        
+                ProcessStepDockToStation,               // 12
+                ProcessStepWaitDockingCompletion,       // 13
+                ProcessStepDisconnectConnector,         // 16
+                ProcessStepResetThrustOverride,         // 14
+                ProcessStepDoAfterDocking,              // 15
+                ProcessStepWaitAtWaypoint,              // 17
+                //ProcessStepWaitUndefinetely
             };
 
             Runtime.UpdateFrequency = UpdateFrequency.None;

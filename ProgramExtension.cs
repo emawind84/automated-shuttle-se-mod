@@ -63,7 +63,7 @@ namespace IngameScript
             }
         }
 
-        void RunIfStopAtWaypoint()
+        void RunIfStopAtWaypointEnabled()
         {
             if (!currentWaypoint.StopAtWaypoint)
             {
@@ -94,35 +94,15 @@ namespace IngameScript
             }
         }
 
-        void SkipIfNoSensor()
+        void SkipIfOrbitMode()
         {
-            if (Sensor == null)
+            if (orbitMode)
             {
                 processStep++;
                 throw new PutOffExecutionException();
             }
         }
-
-        void SkipIfOrbitMode()
-        {
-            processStep++;
-            throw new PutOffExecutionException();
-        }
-
-        void SkipIfCurrentWaypointTooFar()
-        {
-            var remoteBlock = RemoteControl;
-            if (currentWaypoint != null)
-            {
-                float distanceToCurrentWaypoint = Vector3.Distance(ReferenceBlock.GetPosition(), currentWaypoint.Coords);
-                if (distanceToCurrentWaypoint > 1000)
-                {
-                    processStep++;
-                    throw new PutOffExecutionException();
-                }
-            }
-        }
-
+        
         void RunEveryCycles(int cycles)
         {
             if (DateTime.Now - previousStepEndTime > TimeSpan.FromMilliseconds(100) && totalCallCount % cycles != 0)
@@ -204,9 +184,9 @@ namespace IngameScript
             // init settings
             _ini.TryParse(Me.CustomData);
 
-            var parkingPeriodInSeconds = _ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10);
-            parkingPeriodAtWaypoint = TimeSpan.FromSeconds(parkingPeriodInSeconds);
-            
+            parkingPeriodAtWaypoint = TimeSpan.FromSeconds(_ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10));
+
+            #region Waypoints Settings
             string customDataWaypoints = _ini.Get(ScriptPrefixTag, "Waypoints").ToString();
             if (customDataWaypoints != "")
             {
@@ -221,6 +201,17 @@ namespace IngameScript
                     }
                 }
             }
+            #endregion
+
+            #region Orbit Settings
+            orbitMode = _ini.Get(ScriptPrefixTag, "OrbitMode").ToBoolean(false);
+            orbitRadius = _ini.Get(ScriptPrefixTag, "OrbitRadius").ToDouble(DefaultOrbitRadius);
+            if (orbitRadius < 100) orbitRadius = DefaultOrbitRadius;
+            string orbitCenterPositionUserData = _ini.Get(ScriptPrefixTag, "OrbitCenterPosition").ToString();
+            MyWaypointInfo _tmp;
+            if (MyWaypointInfo.TryParse(orbitCenterPositionUserData, out _tmp))
+                orbitCenterPosition = _tmp.Coords;
+            #endregion
         }
 
         /// <summary>
@@ -295,6 +286,57 @@ namespace IngameScript
             _rc?.SetAutoPilotEnabled(false);
         }
 
+        Waypoint FindNextOrbitWaypoint()
+        {
+            double planetRadius = orbitRadius;
+
+            var xDirectionalVector = new Vector3D(1, 0, 0);
+            var yDirectionalVector = new Vector3D(0, 1, 0);
+            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - orbitCenterPosition);
+
+            var dotX = Vector3D.Dot(xDirectionalVector, entityToPlanetDirectionalVector);
+            var dotY = Vector3D.Dot(yDirectionalVector, entityToPlanetDirectionalVector);
+
+            var entityXYAngle = Math.Acos(MathHelper.Clamp(dotX, -1f, 1f));
+            if (dotY < 0)
+            {
+                entityXYAngle = 2 * Math.PI - entityXYAngle;
+            }
+            entityXYAngle += (Math.PI * 2) / 20;  // next waypoint increment
+
+            var z = 0;
+            var x = planetRadius * Math.Cos(entityXYAngle);
+            var y = planetRadius * Math.Sin(entityXYAngle);
+
+            double entityYZAngle = CalculateYZAngle();
+            MatrixD xRotationMatrix = new MatrixD(1, 0, 0, 0, Math.Cos(entityYZAngle), -Math.Sin(entityYZAngle), 0, Math.Sin(entityYZAngle), Math.Cos(entityYZAngle));
+            var gpsCoords = new Vector3D(x, y, z);
+            gpsCoords = Vector3D.Rotate(gpsCoords, xRotationMatrix);
+            gpsCoords = Vector3D.Add(gpsCoords, orbitCenterPosition);
+
+            //EchoR($"GPS:NextWP:{gpsCoords.X}:{gpsCoords.Y}:{gpsCoords.Z}:#FFF17575:");
+
+            return new Waypoint(string.Format("WP:{0:#.###}", entityXYAngle), gpsCoords, false);
+        }
+
+        double CalculateYZAngle()
+        {
+            Vector3D planetCenterPosition = new Vector3D(0, 0, 0);
+            var yDirectionalVector = new Vector3D(0, 1, 0);
+            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - planetCenterPosition);
+            var entityAngle = Math.Atan2(entityToPlanetDirectionalVector.Y, entityToPlanetDirectionalVector.Z)
+                - Math.Atan2(yDirectionalVector.Y, yDirectionalVector.Z);
+            if (entityAngle < 0)
+            {
+                entityAngle += 2 * Math.PI;
+            }
+            if (entityAngle > (Math.PI / 2) && entityAngle < (Math.PI * 3 / 2))
+            {
+                entityAngle += Math.PI;
+            }
+            return entityAngle;
+        }
+
         /// <summary>
         /// Checks if the current call has exceeded the maximum execution limit.
         /// If it has, then it will raise a <see cref="PutOffExecutionException:T"/>.
@@ -305,108 +347,6 @@ namespace IngameScript
         {
             if (ExecutionTime > MAX_RUN_TIME || ExecutionLoad > MAX_LOAD)
                 throw new PutOffExecutionException();
-            return true;
-        }
-
-        IEnumerator<bool> SetSubProcessStepCycle()
-        {
-            var loggerContainer = new LoggerContainer(this);
-            while (true) {
-                yield return SubProcessCheckRemainingBatteryCapacity(loggerContainer.GetLog(0));
-                loggerContainer.Print();
-                yield return SubProcessActivateEmergencyPower(loggerContainer.GetLog(1));
-                loggerContainer.Print();
-                yield return SubProcessSendBroadcastMessage();
-                loggerContainer.Print();
-            }
-        }
-
-        bool SubProcessCheckRemainingBatteryCapacity(StringWrapper log) {
-            var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional);
-            if (batteries.Count() > 0)
-            {
-                float remainingCapacity = RemainingBatteryCapacity(batteries);
-                if (remainingCapacity < CriticalBatteryCapacity)
-                {
-                    log.Append("Critical power detected");
-                    criticalBatteryCapacityDetected = true;
-                    var timerblocks = new List<IMyTimerBlock>();
-                    GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnCriticalCurrentDetectedTag));
-                    timerblocks.ForEach(tb => tb.Trigger());
-
-                    // disable blocks with DisableOnEmergencyTag
-                    EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
-                }
-                else
-                {
-                    criticalBatteryCapacityDetected = false;
-                    var timerblocks = new List<IMyTimerBlock>();
-                    GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnNormalCurrentReestablishedTag));
-                    timerblocks.ForEach(tb => tb.Trigger());
-
-                    // enable blocks with DisableOnEmergencyTag
-                    EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
-                }
-
-                log.Append(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
-            }
-            return true;
-        }
-
-        bool SubProcessActivateEmergencyPower(StringWrapper log)
-        {
-            var generators = new List<IMyPowerProducer>();
-            GridTerminalSystem.GetBlocksOfType(generators, blk => CollectSameConstruct(blk) && MyIni.HasSection(blk.CustomData, EmergencyPowerTag));
-
-            if (criticalBatteryCapacityDetected)
-            {
-                log.Append("Emergency power on");
-                generators.ForEach(blk => blk.Enabled = true);
-            }
-            else
-            {
-                generators.ForEach(blk => blk.Enabled = false);
-            }
-            return true;
-        }
-
-        bool SubProcessDoSomeOtherCheck(StringWrapper log)
-        {
-            log.Append("other check...");
-            log.Append("other check 222...");
-            return true;
-        }
-
-        bool SubProcessEnableBroadcasting()
-        {
-            var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-            antenna.Enabled = true;
-            antenna.EnableBroadcasting = true;
-
-            return true;
-        }
-
-        bool SubProcessDisableBroadcasting()
-        {
-            var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-            antenna.EnableBroadcasting = false;
-
-            return true;
-        }
-
-        bool SubProcessSendBroadcastMessage()
-        {
-            var message = MyTuple.Create
-            (
-                Me.CubeGrid.EntityId,
-                Me.CubeGrid.CustomName,
-                lastShipPosition,
-                informationTerminals.Text
-            );
-            
-            IGC.SendBroadcastMessage(StateBroadcastTag, message);
-
             return true;
         }
         
