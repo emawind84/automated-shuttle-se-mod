@@ -51,7 +51,7 @@ namespace IngameScript
                     timerblocks.ForEach(tb => tb.Trigger());
 
                     // disable blocks with DisableOnEmergencyTag
-                    EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
+                    DisableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
                 }
                 else
                 {

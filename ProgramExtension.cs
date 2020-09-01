@@ -63,6 +63,15 @@ namespace IngameScript
             }
         }
 
+        void SkipIfDockingConnectorAbsent()
+        {
+            if (DockingConnector == null)
+            {
+                processStep++;
+                throw new PutOffExecutionException();
+            }
+        }
+
         void RunIfStopAtWaypointEnabled()
         {
             if (!currentWaypoint.StopAtWaypoint)
@@ -111,9 +120,8 @@ namespace IngameScript
             }
         }
 
-        void PrepareSensor()
+        void PrepareSensor(IMySensorBlock _sensor)
         {
-            var _sensor = Sensor;
             if (_sensor != null)
             {
                 _sensor.Enabled = true;
@@ -122,6 +130,7 @@ namespace IngameScript
                 _sensor.DetectEnemy = true;
                 _sensor.DetectStations = true;
                 _sensor.DetectLargeShips = true;
+                _sensor.DetectSmallShips = true;
                 _sensor.DetectAsteroids = true;
                 _sensor.DetectSubgrids = false;  // we don't want to detect grids connected with rotors or connectors
                 _sensor.DetectPlayers = false;
@@ -131,6 +140,15 @@ namespace IngameScript
                 //_sensor.BackExtend = 25;
                 //_sensor.BottomExtend = 25;
                 //_sensor.TopExtend = 25;
+            }
+        }
+
+        void PrepareConnector(IMyShipConnector connector)
+        {
+            // bug fix connector too strong
+            if (connector != null)
+            {
+                connector.PullStrength = 0;
             }
         }
 
@@ -151,10 +169,6 @@ namespace IngameScript
         {
             var entities = new List<MyDetectedEntityInfo>();
             Sensor?.DetectedEntities(entities);
-            if (Sensor == null)
-            {
-                EchoR("No sensor registered");
-            }
             return entities;
         }
 

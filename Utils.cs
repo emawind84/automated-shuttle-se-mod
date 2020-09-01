@@ -58,13 +58,23 @@ namespace IngameScript
             return block.IsSameConstructAs(Me); ;
         }
 
-        void EnableBlocks(Func<IMyTerminalBlock, bool> collect, bool enable = true)
+        void EnableBlocks(Func<IMyTerminalBlock, bool> collect)
         {
             var blocks = new List<IMyFunctionalBlock>();
             GridTerminalSystem.GetBlocksOfType(blocks, blk => collect(blk));
             foreach (var blk in blocks)
             {
-                blk.Enabled = enable;
+                blk.Enabled = true;
+            }
+        }
+
+        void DisableBlocks(Func<IMyTerminalBlock, bool> collect)
+        {
+            var blocks = new List<IMyFunctionalBlock>();
+            GridTerminalSystem.GetBlocksOfType(blocks, blk => collect(blk));
+            foreach (var blk in blocks)
+            {
+                blk.Enabled = false;
             }
         }
 

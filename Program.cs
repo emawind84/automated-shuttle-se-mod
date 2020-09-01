@@ -27,7 +27,7 @@ namespace IngameScript
 
         const string StateBroadcastTag = "SHUTTLE_STATE";
 
-        const string ReferenceBlockTag = ScriptPrefixTag + ":ReferencePoint";
+        const string ReferenceBlockTag = ScriptPrefixTag + ":ReferenceBlock";
 
         const string DisableOnEmergencyTag = ScriptPrefixTag + ":DisableOnEmergency";
 
@@ -249,7 +249,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 4 == 0 && IsCorrupt(_remoteControl))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_remoteControl))
                 {
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
                     GridTerminalSystem.GetBlocksOfType(blocks, blk => CollectSameConstruct(blk) && blk.IsFunctional);
@@ -262,7 +262,7 @@ namespace IngameScript
                 
                 if (_remoteControl == null)
                 {
-                    EchoR("Waiting for remote control");
+                    EchoR("Remote control not found");
                     throw new PutOffExecutionException();
                 }
                 return _remoteControl;
@@ -273,12 +273,18 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 8 == 0 && IsCorrupt(_dockingConnector))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_dockingConnector))
                 {
                     _dockingConnector = FindFirstBlockOfType<IMyShipConnector>(
                         blk => CollectSameConstruct(blk) && 
                         blk.IsFunctional && 
                         MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+                    PrepareConnector(_dockingConnector);
+                }
+
+                if (_dockingConnector == null)
+                {
+                    EchoR("Docking connector not found");
                 }
 
                 return _dockingConnector;
@@ -289,12 +295,18 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 8 == 0 && IsCorrupt(_sensor))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_sensor))
                 {
                     _sensor = FindFirstBlockOfType<IMySensorBlock>(
                         blk => CollectSameConstruct(blk) && 
                         blk.IsFunctional && 
                         MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+                    PrepareSensor(_sensor);
+                }
+
+                if (_sensor == null)
+                {
+                    EchoR("Sensor not found");
                 }
 
                 return _sensor;
@@ -305,7 +317,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 8 == 0 && IsCorrupt(_referenceBlock))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_referenceBlock))
                 {
                     var blocks = new List<IMyTerminalBlock>();
                     _referenceBlock = FindFirstBlockOfType<IMyTerminalBlock>(

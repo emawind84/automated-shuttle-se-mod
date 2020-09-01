@@ -30,7 +30,6 @@ namespace IngameScript
                 ResetBatteryMode();
                 ResetAutopilot();
                 ZeroThrustOverride();
-                PrepareSensor();
             }
 
             criticalBatteryCapacityDetected = false;
@@ -161,13 +160,13 @@ namespace IngameScript
 
             var _rb = ReferenceBlock;
             var thrusters = new List<IMyThrust>();
-            if (!IsObstructed(_rb.WorldMatrix.Backward))
-            {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Forward);
-            }
-            else if (!IsObstructed(_rb.WorldMatrix.Forward))
+            if (!IsObstructed(_rb.WorldMatrix.Forward))
             {
                 GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Backward);
+            }
+            else if (!IsObstructed(_rb.WorldMatrix.Backward))
+            {
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Forward);
             }
             else if (!IsObstructed(_rb.WorldMatrix.Left))
             {
@@ -306,11 +305,14 @@ namespace IngameScript
         void ProcessStepDockToStation()
         {
             SkipIfOrbitMode();
+            SkipIfDockingConnectorAbsent();
             SkipIfDocked();
             //SkipIfNoGridNearby(); if the ship is too far from the grid this step is not going to be executed
 
             // start docking
-            var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(blk => MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsWorking);
+            var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(
+                blk => blk.CustomName?.IndexOf(DockingScriptTag) != -1 || 
+                MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsWorking);
             if (dockingScript == null)
             {
                 EchoR("Docking script not found");
@@ -335,6 +337,7 @@ namespace IngameScript
         void ProcessStepWaitDockingCompletion()
         {
             SkipIfOrbitMode();
+            SkipIfDockingConnectorAbsent();
             SkipOnTimeout(30);
 
             var _dc = DockingConnector;
@@ -367,6 +370,7 @@ namespace IngameScript
             SkipIfOrbitMode();
             var _dc = DockingConnector;
             _dc?.Disconnect();
+            
             if (_dc?.Status == MyShipConnectorStatus.Connected)
             {
                 EchoR("Connector still connected");
@@ -415,7 +419,11 @@ namespace IngameScript
             //var obstructed = IsObstructed(velocity, blk => blk.Type == MyDetectedEntityType.SmallGrid);
             //EchoR("Obstructed: " + obstructed);
 
-            FindNextOrbitWaypoint();
+            if (IsObstructed(ReferenceBlock.WorldMatrix.Backward))
+            {
+                EchoR("forward obstructed");
+            }
+            
         }
 
         #endregion
