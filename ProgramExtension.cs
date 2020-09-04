@@ -219,12 +219,18 @@ namespace IngameScript
 
             #region Orbit Settings
             orbitMode = _ini.Get(ScriptPrefixTag, "OrbitMode").ToBoolean(false);
-            orbitRadius = _ini.Get(ScriptPrefixTag, "OrbitRadius").ToDouble(DefaultOrbitRadius);
-            if (orbitRadius < 100) orbitRadius = DefaultOrbitRadius;
-            string orbitCenterPositionUserData = _ini.Get(ScriptPrefixTag, "OrbitCenterPosition").ToString();
-            MyWaypointInfo _tmp;
-            if (MyWaypointInfo.TryParse(orbitCenterPositionUserData, out _tmp))
-                orbitCenterPosition = _tmp.Coords;
+            EchoR($"OrbitMode: {orbitMode}");
+            if (orbitMode)
+            {
+                orbitRadius = _ini.Get(ScriptPrefixTag, "OrbitRadius").ToDouble(DefaultOrbitRadius);
+                if (orbitRadius < 100) orbitRadius = DefaultOrbitRadius;
+                EchoR($"OrbitRadius: {orbitRadius}");
+                string orbitCenterPositionUserData = _ini.Get(ScriptPrefixTag, "OrbitCenterPosition").ToString();
+                MyWaypointInfo _tmp;
+                if (MyWaypointInfo.TryParse(orbitCenterPositionUserData, out _tmp))
+                    orbitCenterPosition = _tmp.Coords;
+                EchoR($"OrbitCenterPosition: {orbitCenterPosition}");
+            }
             #endregion
         }
 
@@ -335,9 +341,8 @@ namespace IngameScript
 
         double CalculateYZAngle()
         {
-            Vector3D planetCenterPosition = new Vector3D(0, 0, 0);
             var yDirectionalVector = new Vector3D(0, 1, 0);
-            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - planetCenterPosition);
+            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - orbitCenterPosition);
             var entityAngle = Math.Atan2(entityToPlanetDirectionalVector.Y, entityToPlanetDirectionalVector.Z)
                 - Math.Atan2(yDirectionalVector.Y, yDirectionalVector.Z);
             if (entityAngle < 0)

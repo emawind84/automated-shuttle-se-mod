@@ -56,6 +56,7 @@ namespace IngameScript
             ResetBatteryMode();
             ResetAutopilot();
             isRunning = false;
+            currentWaypoint = null;
             Runtime.UpdateFrequency = UpdateFrequency.None;
             EchoR("System shut down");
         }
