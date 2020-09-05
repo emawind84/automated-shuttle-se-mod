@@ -34,21 +34,28 @@ namespace IngameScript
 
         void SkipIfDocked()
         {
-            // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Connected
-                || DockingConnector.Status == MyShipConnectorStatus.Connectable)
+            var connector = DockingConnector;
+            if (connector != null)
             {
-                EchoR("Skipping: ship docked");
-                processStep++;
-                throw new PutOffExecutionException();
+                // check if the ship is connected to a grid
+                if (connector.Status == MyShipConnectorStatus.Connected
+                    || connector.Status == MyShipConnectorStatus.Connectable)
+                {
+                    EchoR("Skipping: ship docked");
+                    processStep++;
+                    throw new PutOffExecutionException();
+                }
             }
         }
 
         void SkipIfNotConnected()
         {
+            var connector = DockingConnector;
+            
             // check if the ship is connected to a grid
-            if (DockingConnector.Status == MyShipConnectorStatus.Unconnected
-                || DockingConnector.Status == MyShipConnectorStatus.Connectable)
+            if (connector == null || 
+                connector.Status == MyShipConnectorStatus.Unconnected ||
+                connector.Status == MyShipConnectorStatus.Connectable)
             {
                 EchoR("Skipping: ship undocked");
                 processStep++;
@@ -56,9 +63,18 @@ namespace IngameScript
             }
         }
 
-        void SkipIfWaypointWithoutDock()
+        void SkipIfDockingConnectorAbsent()
         {
-            if (!currentWaypoint.WaitAtWaypoint)
+            if (DockingConnector == null)
+            {
+                processStep++;
+                throw new PutOffExecutionException();
+            }
+        }
+
+        void RunIfStopAtWaypointEnabled()
+        {
+            if (!currentWaypoint.StopAtWaypoint)
             {
                 processStep++;
                 throw new PutOffExecutionException();
@@ -87,15 +103,15 @@ namespace IngameScript
             }
         }
 
-        void SkipIfNoSensor()
+        void SkipIfOrbitMode()
         {
-            if (Sensor == null)
+            if (orbitMode)
             {
                 processStep++;
                 throw new PutOffExecutionException();
             }
         }
-
+        
         void RunEveryCycles(int cycles)
         {
             if (DateTime.Now - previousStepEndTime > TimeSpan.FromMilliseconds(100) && totalCallCount % cycles != 0)
@@ -104,9 +120,8 @@ namespace IngameScript
             }
         }
 
-        void PrepareSensor()
+        void PrepareSensor(IMySensorBlock _sensor)
         {
-            var _sensor = Sensor;
             if (_sensor != null)
             {
                 _sensor.Enabled = true;
@@ -115,6 +130,7 @@ namespace IngameScript
                 _sensor.DetectEnemy = true;
                 _sensor.DetectStations = true;
                 _sensor.DetectLargeShips = true;
+                _sensor.DetectSmallShips = true;
                 _sensor.DetectAsteroids = true;
                 _sensor.DetectSubgrids = false;  // we don't want to detect grids connected with rotors or connectors
                 _sensor.DetectPlayers = false;
@@ -124,6 +140,15 @@ namespace IngameScript
                 //_sensor.BackExtend = 25;
                 //_sensor.BottomExtend = 25;
                 //_sensor.TopExtend = 25;
+            }
+        }
+
+        void PrepareConnector(IMyShipConnector connector)
+        {
+            // bug fix connector too strong
+            if (connector != null)
+            {
+                connector.PullStrength = 0;
             }
         }
 
@@ -144,10 +169,6 @@ namespace IngameScript
         {
             var entities = new List<MyDetectedEntityInfo>();
             Sensor?.DetectedEntities(entities);
-            if (Sensor == null)
-            {
-                EchoR("No sensor registered");
-            }
             return entities;
         }
 
@@ -177,9 +198,9 @@ namespace IngameScript
             // init settings
             _ini.TryParse(Me.CustomData);
 
-            var parkingPeriodInSeconds = _ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10);
-            parkingPeriodAtWaypoint = TimeSpan.FromSeconds(parkingPeriodInSeconds);
-            
+            parkingPeriodAtWaypoint = TimeSpan.FromSeconds(_ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10));
+
+            #region Waypoints Settings
             string customDataWaypoints = _ini.Get(ScriptPrefixTag, "Waypoints").ToString();
             if (customDataWaypoints != "")
             {
@@ -194,6 +215,23 @@ namespace IngameScript
                     }
                 }
             }
+            #endregion
+
+            #region Orbit Settings
+            orbitMode = _ini.Get(ScriptPrefixTag, "OrbitMode").ToBoolean(false);
+            EchoR($"OrbitMode: {orbitMode}");
+            if (orbitMode)
+            {
+                orbitRadius = _ini.Get(ScriptPrefixTag, "OrbitRadius").ToDouble(DefaultOrbitRadius);
+                if (orbitRadius < 100) orbitRadius = DefaultOrbitRadius;
+                EchoR($"OrbitRadius: {orbitRadius}");
+                string orbitCenterPositionUserData = _ini.Get(ScriptPrefixTag, "OrbitCenterPosition").ToString();
+                MyWaypointInfo _tmp;
+                if (MyWaypointInfo.TryParse(orbitCenterPositionUserData, out _tmp))
+                    orbitCenterPosition = _tmp.Coords;
+                EchoR($"OrbitCenterPosition: {orbitCenterPosition}");
+            }
+            #endregion
         }
 
         /// <summary>
@@ -268,6 +306,57 @@ namespace IngameScript
             _rc?.SetAutoPilotEnabled(false);
         }
 
+        Waypoint FindNextOrbitWaypoint()
+        {
+            double planetRadius = orbitRadius;
+
+            var xDirectionalVector = new Vector3D(1, 0, 0);
+            var yDirectionalVector = new Vector3D(0, 1, 0);
+            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - orbitCenterPosition);
+
+            var dotX = Vector3D.Dot(xDirectionalVector, entityToPlanetDirectionalVector);
+            var dotY = Vector3D.Dot(yDirectionalVector, entityToPlanetDirectionalVector);
+
+            var entityXYAngle = Math.Acos(MathHelper.Clamp(dotX, -1f, 1f));
+            if (dotY < 0)
+            {
+                entityXYAngle = 2 * Math.PI - entityXYAngle;
+            }
+            entityXYAngle += (Math.PI * 2) / 20;  // next waypoint increment
+
+            var z = 0;
+            var x = planetRadius * Math.Cos(entityXYAngle);
+            var y = planetRadius * Math.Sin(entityXYAngle);
+
+            if (orbitYZAngle == 0)
+                orbitYZAngle = CalculateYZAngle();
+            MatrixD xRotationMatrix = new MatrixD(1, 0, 0, 0, Math.Cos(orbitYZAngle), -Math.Sin(orbitYZAngle), 0, Math.Sin(orbitYZAngle), Math.Cos(orbitYZAngle));
+            var gpsCoords = new Vector3D(x, y, z);
+            gpsCoords = Vector3D.Rotate(gpsCoords, xRotationMatrix);
+            gpsCoords = Vector3D.Add(gpsCoords, orbitCenterPosition);
+
+            //EchoR($"GPS:NextWP:{gpsCoords.X}:{gpsCoords.Y}:{gpsCoords.Z}:#FFF17575:");
+
+            return new Waypoint(string.Format("WP:{0:#.###}", entityXYAngle), gpsCoords, false);
+        }
+
+        double CalculateYZAngle()
+        {
+            var yDirectionalVector = new Vector3D(0, 1, 0);
+            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - orbitCenterPosition);
+            var entityAngle = Math.Atan2(entityToPlanetDirectionalVector.Y, entityToPlanetDirectionalVector.Z)
+                - Math.Atan2(yDirectionalVector.Y, yDirectionalVector.Z);
+            if (entityAngle < 0)
+            {
+                entityAngle += 2 * Math.PI;
+            }
+            if (entityAngle > (Math.PI / 2) && entityAngle < (Math.PI * 3 / 2))
+            {
+                entityAngle += Math.PI;
+            }
+            return entityAngle;
+        }
+
         /// <summary>
         /// Checks if the current call has exceeded the maximum execution limit.
         /// If it has, then it will raise a <see cref="PutOffExecutionException:T"/>.
@@ -278,108 +367,6 @@ namespace IngameScript
         {
             if (ExecutionTime > MAX_RUN_TIME || ExecutionLoad > MAX_LOAD)
                 throw new PutOffExecutionException();
-            return true;
-        }
-
-        IEnumerator<bool> SetSubProcessStepCycle()
-        {
-            var loggerContainer = new LoggerContainer(this);
-            while (true) {
-                yield return SubProcessCheckRemainingBatteryCapacity(loggerContainer.GetLog(0));
-                loggerContainer.Print();
-                yield return SubProcessActivateEmergencyPower(loggerContainer.GetLog(1));
-                loggerContainer.Print();
-                yield return SubProcessSendBroadcastMessage();
-                loggerContainer.Print();
-            }
-        }
-
-        bool SubProcessCheckRemainingBatteryCapacity(StringWrapper log) {
-            var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional);
-            if (batteries.Count() > 0)
-            {
-                float remainingCapacity = RemainingBatteryCapacity(batteries);
-                if (remainingCapacity < CriticalBatteryCapacity)
-                {
-                    log.Append("Critical power detected");
-                    criticalBatteryCapacityDetected = true;
-                    var timerblocks = new List<IMyTimerBlock>();
-                    GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnCriticalCurrentDetectedTag));
-                    timerblocks.ForEach(tb => tb.Trigger());
-
-                    // disable blocks with DisableOnEmergencyTag
-                    EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag), false);
-                }
-                else
-                {
-                    criticalBatteryCapacityDetected = false;
-                    var timerblocks = new List<IMyTimerBlock>();
-                    GridTerminalSystem.GetBlocksOfType(timerblocks, tb => MyIni.HasSection(tb.CustomData, TriggerOnNormalCurrentReestablishedTag));
-                    timerblocks.ForEach(tb => tb.Trigger());
-
-                    // enable blocks with DisableOnEmergencyTag
-                    EnableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
-                }
-
-                log.Append(string.Format("Battery capacity: {0}%", Math.Round(remainingCapacity * 100, 0)));
-            }
-            return true;
-        }
-
-        bool SubProcessActivateEmergencyPower(StringWrapper log)
-        {
-            var generators = new List<IMyPowerProducer>();
-            GridTerminalSystem.GetBlocksOfType(generators, blk => CollectSameConstruct(blk) && MyIni.HasSection(blk.CustomData, EmergencyPowerTag));
-
-            if (criticalBatteryCapacityDetected)
-            {
-                log.Append("Emergency power on");
-                generators.ForEach(blk => blk.Enabled = true);
-            }
-            else
-            {
-                generators.ForEach(blk => blk.Enabled = false);
-            }
-            return true;
-        }
-
-        bool SubProcessDoSomeOtherCheck(StringWrapper log)
-        {
-            log.Append("other check...");
-            log.Append("other check 222...");
-            return true;
-        }
-
-        bool SubProcessEnableBroadcasting()
-        {
-            var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-            antenna.Enabled = true;
-            antenna.EnableBroadcasting = true;
-
-            return true;
-        }
-
-        bool SubProcessDisableBroadcasting()
-        {
-            var antenna = FindFirstBlockOfType<IMyRadioAntenna>(blk => MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
-            antenna.EnableBroadcasting = false;
-
-            return true;
-        }
-
-        bool SubProcessSendBroadcastMessage()
-        {
-            var message = MyTuple.Create
-            (
-                Me.CubeGrid.EntityId,
-                Me.CubeGrid.CustomName,
-                lastShipPosition,
-                informationTerminals.Text
-            );
-            
-            IGC.SendBroadcastMessage(StateBroadcastTag, message);
-
             return true;
         }
         

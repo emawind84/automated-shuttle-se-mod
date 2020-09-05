@@ -43,6 +43,7 @@
     <Compile Include="ProgramCommands.cs" />
     <Compile Include="ProgramExtension.cs" />
     <Compile Include="DebugTerminal.cs" />
+    <Compile Include="SubProcessSteps.cs" />
     <Compile Include="Terminal.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <AdditionalFiles Include="MDK\MDK.options.props">

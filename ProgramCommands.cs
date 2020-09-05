@@ -56,6 +56,8 @@ namespace IngameScript
             ResetBatteryMode();
             ResetAutopilot();
             isRunning = false;
+            processStep = 0;
+            currentWaypoint = null;
             Runtime.UpdateFrequency = UpdateFrequency.None;
             EchoR("System shut down");
         }
@@ -109,8 +111,6 @@ namespace IngameScript
 
         void Test()
         {
-
-            EchoR(string.Format("### {0}", ReferenceBlock.WorldMatrix.Up == (Vector3D.Zero - ReferenceBlock.WorldMatrix.Down)));
 
             Runtime.UpdateFrequency = UpdateFrequency.None;
         }

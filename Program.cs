@@ -27,7 +27,7 @@ namespace IngameScript
 
         const string StateBroadcastTag = "SHUTTLE_STATE";
 
-        const string ReferenceBlockTag = ScriptPrefixTag + ":ReferencePoint";
+        const string ReferenceBlockTag = ScriptPrefixTag + ":ReferenceBlock";
 
         const string DisableOnEmergencyTag = ScriptPrefixTag + ":DisableOnEmergency";
 
@@ -51,6 +51,8 @@ namespace IngameScript
 
         const string EmergencyPowerTag = ScriptPrefixTag + ":EmergencyPower";
 
+        const double DefaultOrbitRadius = 50000;
+
         /// <summary>
         /// Safe distance from dock before going to next waypoint
         /// </summary>
@@ -73,6 +75,18 @@ namespace IngameScript
         /// How long the ship will remain at the waypoint
         /// </summary>
         TimeSpan parkingPeriodAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
+        /// <summary>
+        /// Switch to orbit mode or make use of custom waypoints
+        /// </summary>
+        bool orbitMode = false;
+        /// <summary>
+        /// The distance from the center position where the ship will remain for orbit mode
+        /// </summary>
+        double orbitRadius = DefaultOrbitRadius;
+        /// <summary>
+        /// The center position of the orbit
+        /// </summary>
+        Vector3D orbitCenterPosition = new Vector3D(0, 0, 0);
         /// <summary>
         /// whether to use real time (second between calls) or pure UpdateFrequency
         /// for update frequency
@@ -207,8 +221,14 @@ namespace IngameScript
         /// Display friendly information for the player
         /// </summary>
         DisplayTerminal informationTerminals;
-
+        /// <summary>
+        /// The sub processes cycle
+        /// </summary>
         IEnumerator<bool> subProcessStepCycle;
+        /// <summary>
+        /// Represent the angle between the Y and Z axis for orbit calculation
+        /// </summary>
+        double orbitYZAngle;
 
         #endregion
 
@@ -235,7 +255,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_remoteControl))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_remoteControl))
                 {
                     List<IMyRemoteControl> blocks = new List<IMyRemoteControl>();
                     GridTerminalSystem.GetBlocksOfType(blocks, blk => CollectSameConstruct(blk) && blk.IsFunctional);
@@ -248,7 +268,7 @@ namespace IngameScript
                 
                 if (_remoteControl == null)
                 {
-                    EchoR("Waiting for remote control");
+                    EchoR("Remote control not found");
                     throw new PutOffExecutionException();
                 }
                 return _remoteControl;
@@ -259,19 +279,20 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_dockingConnector))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_dockingConnector))
                 {
                     _dockingConnector = FindFirstBlockOfType<IMyShipConnector>(
                         blk => CollectSameConstruct(blk) && 
                         blk.IsFunctional && 
                         MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+                    PrepareConnector(_dockingConnector);
                 }
 
                 if (_dockingConnector == null)
                 {
-                    EchoR("Waiting for connector");
-                    throw new PutOffExecutionException();
+                    EchoR("Docking connector not found");
                 }
+
                 return _dockingConnector;
             }
         }
@@ -280,18 +301,20 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_sensor))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_sensor))
                 {
                     _sensor = FindFirstBlockOfType<IMySensorBlock>(
                         blk => CollectSameConstruct(blk) && 
                         blk.IsFunctional && 
                         MyIni.HasSection(blk.CustomData, ScriptPrefixTag));
+                    PrepareSensor(_sensor);
                 }
 
                 if (_sensor == null)
                 {
-                    EchoR("Waiting for sensor");
+                    EchoR("Sensor not found");
                 }
+
                 return _sensor;
             }
         }
@@ -300,7 +323,7 @@ namespace IngameScript
         {
             get
             {
-                if (totalCallCount % 10 == 0 && IsCorrupt(_referenceBlock))
+                if (totalCallCount % 2 == 0 && IsCorrupt(_referenceBlock))
                 {
                     var blocks = new List<IMyTerminalBlock>();
                     _referenceBlock = FindFirstBlockOfType<IMyTerminalBlock>(
@@ -323,11 +346,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 4;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 1, VERSION_REVISION = 1;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-08-24";
+        const string VERSION_UPDATE = "2020-09-05";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>
@@ -386,9 +409,7 @@ namespace IngameScript
                 ProcessStepMoveAwayFromDock,            // 8
                 ProcessStepResetThrustOverride,         // 9
                 ProcessStepGoToWaypoint,                // 10
-                //ProcessStepDisableBroadcasting,       
                 ProcessStepTravelToWaypoint,            // 11
-                //ProcessStepEnableBroadcasting,        
                 ProcessStepDockToStation,               // 12
                 ProcessStepWaitDockingCompletion,       // 13
                 ProcessStepDisconnectConnector,         // 16

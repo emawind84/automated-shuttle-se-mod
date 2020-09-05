@@ -25,10 +25,12 @@ namespace IngameScript
 
         void ProcessStepResetControl()
         {
-            ResetBatteryMode();
-            ResetAutopilot();
-            ZeroThrustOverride();
-            PrepareSensor();
+            if (!orbitMode)
+            {  // TODO need fix
+                ResetBatteryMode();
+                ResetAutopilot();
+                ZeroThrustOverride();
+            }
 
             criticalBatteryCapacityDetected = false;
             lowBatteryCapacityDetected = false;
@@ -38,38 +40,45 @@ namespace IngameScript
 
         void ProcessStepFindNextWaypoint()
         {
-            if (waypoints.Count() == 0)
+            if (orbitMode)
             {
-                EchoR("No waypoint defined");
-                throw new PutOffExecutionException();
-            }
-            if (currentWaypoint == null)
-            {
-                currentWaypoint = waypoints.First();
+                currentWaypoint = FindNextOrbitWaypoint();
             }
             else
             {
-                double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
-
-                if (distanceFromWaypoint < 100)
+                if (waypoints.Count() == 0)
                 {
-                    currentWaypoint = GetNextWaypoint();
+                    EchoR("No waypoint defined");
+                    throw new PutOffExecutionException();
                 }
+                if (currentWaypoint == null)
+                {
+                    currentWaypoint = waypoints.First();
+                }
+                else
+                {
+                    double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
+                    if (distanceFromWaypoint < 100)
+                    {
+                        currentWaypoint = GetNextWaypoint();
+                    }
 
+                }
             }
-
+            
             processStep++;
         }
 
         void ProcessStepRechargeBatteries()
         {
+            SkipIfOrbitMode();
             RunEveryCycles(2);
             SkipIfNotConnected();
 
             var batteries = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional);
             batteries.Sort(SortByStoredPower);
-            
+
             if (batteries.Count() == 0)
             {
                 processStep++;
@@ -108,6 +117,7 @@ namespace IngameScript
 
         void ProcessStepWaitBeforeUndocking()
         {
+            SkipIfOrbitMode();
             SkipIfNoGridNearby();
             SkipOnTimeout(10);
 
@@ -116,6 +126,7 @@ namespace IngameScript
 
         void ProcessStepDoBeforeUndocking()
         {
+            SkipIfOrbitMode();
             SkipIfNoGridNearby();
 
             var timerBlocks = new List<IMyTimerBlock>();
@@ -131,12 +142,12 @@ namespace IngameScript
 
         void ProcessStepUndockShip()
         {
+            SkipIfOrbitMode();
             SkipIfNoGridNearby();
 
             var _dc = DockingConnector;
-            _dc.Disconnect();
-            _dc.PullStrength = 0;
-            if (_dc.Status != MyShipConnectorStatus.Connected)
+            _dc?.Disconnect();
+            if (_dc?.Status != MyShipConnectorStatus.Connected)
             {
                 processStep++;
             }
@@ -144,34 +155,34 @@ namespace IngameScript
 
         void ProcessStepMoveAwayFromDock()
         {
+            SkipIfOrbitMode();
             SkipIfNoGridNearby();
-            //SkipIfNoSensor();
 
-            var _dc = DockingConnector;
+            var _rb = ReferenceBlock;
             var thrusters = new List<IMyThrust>();
-            if (!IsObstructed(_dc.WorldMatrix.Backward))
+            if (!IsObstructed(_rb.WorldMatrix.Forward))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Forward);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Backward);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Forward))
+            else if (!IsObstructed(_rb.WorldMatrix.Backward))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Backward);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Forward);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Left))
+            else if (!IsObstructed(_rb.WorldMatrix.Left))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Right);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Right);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Right))
+            else if (!IsObstructed(_rb.WorldMatrix.Right))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Left);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Left);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Up))
+            else if (!IsObstructed(_rb.WorldMatrix.Up))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Down);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Down);
             }
-            else if (!IsObstructed(_dc.WorldMatrix.Down))
+            else if (!IsObstructed(_rb.WorldMatrix.Down))
             {
-                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _dc.WorldMatrix.Up);
+                GridTerminalSystem.GetBlocksOfType(thrusters, thruster => thruster.WorldMatrix.Forward == _rb.WorldMatrix.Up);
             }
             else
             {
@@ -211,20 +222,16 @@ namespace IngameScript
         void ProcessStepGoToWaypoint()
         {
             SkipIfDocked();
-
+            
             var controlBlock = RemoteControl;
             controlBlock.SetCollisionAvoidance(true);
             controlBlock.FlightMode = FlightMode.OneWay;
             controlBlock.SetDockingMode(false);
-            if (currentWaypoint.WaitAtWaypoint) controlBlock.SetDockingMode(true);
+            if (currentWaypoint.StopAtWaypoint) controlBlock.SetDockingMode(true);
 
-            float distanceToWaypoint = Vector3.Distance(ReferenceBlock.GetPosition(), currentWaypoint.Coords);
-            if (distanceToWaypoint > 50)
-            {
-                controlBlock.ClearWaypoints();
-                controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
-                controlBlock.SetAutoPilotEnabled(true);
-            }
+            controlBlock.ClearWaypoints();
+            controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
+            controlBlock.SetAutoPilotEnabled(true);
 
             processStep++;
         }
@@ -270,6 +277,8 @@ namespace IngameScript
         void ProcessStepTravelToWaypoint()
         {
             SkipIfDocked();
+            RunIfStopAtWaypointEnabled();
+
             var _rc = RemoteControl;
             double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());
             if (Math.Round(_rc.GetShipSpeed(), 0) == 0 && distanceFromWaypoint < 100)
@@ -283,11 +292,15 @@ namespace IngameScript
 
         void ProcessStepDockToStation()
         {
-            //SkipIfNoGridNearby(); if the ship is too far from the grid this step is not goind to be executed
+            SkipIfOrbitMode();
+            SkipIfDockingConnectorAbsent();
             SkipIfDocked();
-            
+            //SkipIfNoGridNearby(); if the ship is too far from the grid this step is not going to be executed
+
             // start docking
-            var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(blk => MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsWorking);
+            var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(
+                blk => blk.CustomName.IndexOf(DockingScriptTag, StringComparison.InvariantCultureIgnoreCase) != -1 || 
+                MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsWorking);
             if (dockingScript == null)
             {
                 EchoR("Docking script not found");
@@ -311,17 +324,12 @@ namespace IngameScript
 
         void ProcessStepWaitDockingCompletion()
         {
-            //SkipIfNoGridNearby();
+            SkipIfOrbitMode();
+            SkipIfDockingConnectorAbsent();
             SkipOnTimeout(30);
 
-            //var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(blk => MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsRunning);
-            //var velocityVector = RemoteControl.GetShipVelocities().LinearVelocity;
-            //if (IsObstructed(velocityVector, blk => blk.Type == MyDetectedEntityType.SmallGrid))
-            //{
-            //}
-
             var _dc = DockingConnector;
-            if (_dc.Status == MyShipConnectorStatus.Connectable || _dc.Status == MyShipConnectorStatus.Connected)
+            if (_dc?.Status == MyShipConnectorStatus.Connectable || _dc?.Status == MyShipConnectorStatus.Connected)
             {
                 processStep++;
             }
@@ -331,6 +339,7 @@ namespace IngameScript
 
         void ProcessStepDoAfterDocking()
         {
+            SkipIfOrbitMode();
             //SkipIfNoGridNearby();  // if the ship is connected the station is not counted
 
             var timerBlocks = new List<IMyTimerBlock>();
@@ -346,9 +355,11 @@ namespace IngameScript
 
         void ProcessStepDisconnectConnector()
         {
+            SkipIfOrbitMode();
             var _dc = DockingConnector;
-            _dc.Disconnect();
-            if (_dc.Status == MyShipConnectorStatus.Connected)
+            _dc?.Disconnect();
+            
+            if (_dc?.Status == MyShipConnectorStatus.Connected)
             {
                 EchoR("Connector still connected");
                 throw new PutOffExecutionException();
@@ -358,8 +369,9 @@ namespace IngameScript
 
         void ProcessStepConnectConnector()
         {
+            SkipIfOrbitMode();
             var _dc = DockingConnector;
-            if (_dc.Status == MyShipConnectorStatus.Connectable)
+            if (_dc?.Status == MyShipConnectorStatus.Connectable)
             {
                 _dc.Connect();
             }
@@ -368,28 +380,38 @@ namespace IngameScript
 
         void ProcessStepWaitAtWaypoint()
         {
-            SkipIfNoGridNearby();
-            DateTime n = DateTime.Now;
-            if (n - previousStepEndTime >= parkingPeriodAtWaypoint)
+            if (currentWaypoint.StopAtWaypoint)
+            {
+                DateTime n = DateTime.Now;
+                if (n - previousStepEndTime >= parkingPeriodAtWaypoint)
+                {
+                    processStep++;
+                }
+
+                TimeSpan remainingSeconds = parkingPeriodAtWaypoint - (n - previousStepEndTime);
+                informationTerminals.Text = string.Format("Departure for {0} in {1}s", GetNextWaypoint()?.Name, Math.Round(remainingSeconds.TotalSeconds, 0));
+            }
+            else
             {
                 processStep++;
             }
-
-            TimeSpan remainingSeconds = parkingPeriodAtWaypoint - (n - previousStepEndTime);
-            informationTerminals.Text = string.Format("Departure for {0} in {1}s", GetNextWaypoint()?.Name, Math.Round(remainingSeconds.TotalSeconds, 0));
         }
 
         void ProcessStepWaitUndefinetely()
         {
             //RunEveryCycles(2);
-            var velocity = RemoteControl.GetShipVelocities().LinearVelocity;
-            EchoR("" + velocity);
-            var directionalVector = Vector3D.Normalize(lastShipPosition - ReferenceBlock.GetPosition());
-            EchoR("" + directionalVector);
-            var obstructed = IsObstructed(velocity, blk => blk.Type == MyDetectedEntityType.SmallGrid);
-            EchoR("Obstructed: " + obstructed);
+            //var velocity = RemoteControl.GetShipVelocities().LinearVelocity;
+            //EchoR("" + velocity);
+            //var directionalVector = Vector3D.Normalize(lastShipPosition - ReferenceBlock.GetPosition());
+            //EchoR("" + directionalVector);
+            //var obstructed = IsObstructed(velocity, blk => blk.Type == MyDetectedEntityType.SmallGrid);
+            //EchoR("Obstructed: " + obstructed);
 
-            //EchoR("Running step now!");
+            if (IsObstructed(ReferenceBlock.WorldMatrix.Backward))
+            {
+                EchoR("forward obstructed");
+            }
+            
         }
 
         #endregion
