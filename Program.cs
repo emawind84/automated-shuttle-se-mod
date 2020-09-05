@@ -221,8 +221,14 @@ namespace IngameScript
         /// Display friendly information for the player
         /// </summary>
         DisplayTerminal informationTerminals;
-
+        /// <summary>
+        /// The sub processes cycle
+        /// </summary>
         IEnumerator<bool> subProcessStepCycle;
+        /// <summary>
+        /// Represent the angle between the Y and Z axis for orbit calculation
+        /// </summary>
+        double orbitYZAngle;
 
         #endregion
 
@@ -340,11 +346,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 0, VERSION_REVISION = 5;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 1, VERSION_REVISION = 0;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-09-02";
+        const string VERSION_UPDATE = "2020-09-05";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>

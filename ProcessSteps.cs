@@ -229,21 +229,9 @@ namespace IngameScript
             controlBlock.SetDockingMode(false);
             if (currentWaypoint.StopAtWaypoint) controlBlock.SetDockingMode(true);
 
-            float distanceToNextWaypoint = Vector3.Distance(ReferenceBlock.GetPosition(), currentWaypoint.Coords);
-            if (distanceToNextWaypoint > 50)
-            {
-                var waypoints = new List<MyWaypointInfo>();
-                controlBlock.GetWaypointInfo(waypoints);
-                if (waypoints.Count() <= 2)
-                {
-                    MyWaypointInfo cw = controlBlock.CurrentWaypoint;
-                    controlBlock.ClearWaypoints();
-                    if (!cw.IsEmpty())
-                        controlBlock.AddWaypoint(cw);
-                    controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
-                    controlBlock.SetAutoPilotEnabled(true);
-                }
-            }
+            controlBlock.ClearWaypoints();
+            controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
+            controlBlock.SetAutoPilotEnabled(true);
 
             processStep++;
         }
@@ -311,7 +299,7 @@ namespace IngameScript
 
             // start docking
             var dockingScript = FindFirstBlockOfType<IMyProgrammableBlock>(
-                blk => blk.CustomName?.IndexOf(DockingScriptTag) != -1 || 
+                blk => blk.CustomName.IndexOf(DockingScriptTag, StringComparison.InvariantCultureIgnoreCase) != -1 || 
                 MyIni.HasSection(blk.CustomData, DockingScriptTag) && blk.IsWorking);
             if (dockingScript == null)
             {

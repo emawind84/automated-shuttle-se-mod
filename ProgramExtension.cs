@@ -328,8 +328,10 @@ namespace IngameScript
             var x = planetRadius * Math.Cos(entityXYAngle);
             var y = planetRadius * Math.Sin(entityXYAngle);
 
-            double entityYZAngle = CalculateYZAngle();
-            MatrixD xRotationMatrix = new MatrixD(1, 0, 0, 0, Math.Cos(entityYZAngle), -Math.Sin(entityYZAngle), 0, Math.Sin(entityYZAngle), Math.Cos(entityYZAngle));
+            if (orbitYZAngle == 0)
+                orbitYZAngle = CalculateYZAngle();
+            EchoR($"Orbit Angle: {orbitYZAngle}");
+            MatrixD xRotationMatrix = new MatrixD(1, 0, 0, 0, Math.Cos(orbitYZAngle), -Math.Sin(orbitYZAngle), 0, Math.Sin(orbitYZAngle), Math.Cos(orbitYZAngle));
             var gpsCoords = new Vector3D(x, y, z);
             gpsCoords = Vector3D.Rotate(gpsCoords, xRotationMatrix);
             gpsCoords = Vector3D.Add(gpsCoords, orbitCenterPosition);
