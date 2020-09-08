@@ -52,49 +52,40 @@ namespace IngameScript
         const string EmergencyPowerTag = ScriptPrefixTag + ":EmergencyPower";
 
         const double DefaultOrbitRadius = 50000;
-
-        /// <summary>
-        /// Safe distance from dock before going to next waypoint
-        /// </summary>
+        
+        // Safe distance from dock before going to next waypoint
         const int SafeDistanceFromDock = 20;
-        /// <summary>
-        /// The overall batteries capacity in order to consider them charged
-        /// </summary>
+        
+        // The overall batteries capacity in order to consider them charged
         const float ChargedBatteryCapacity = 0.9f;
-        /// <summary>
-        /// The minimum battery capacity to operate the ship.
-        /// If the capacity go down this level the batteries will start recharging if the ship is docked
-        /// </summary>
+        
+        // The minimum battery capacity to operate the ship.
+        // If the capacity go down this level the batteries will start recharging if the ship is docked
         const float MinBatteryCapacity = 0.5f;
-        /// <summary>
-        /// If the batteries go below this threshold something is wrong and action should be taken
-        /// Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
-        /// </summary>
+        
+        // If the batteries go below this threshold something is wrong and action should be taken
+        // Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
         const float CriticalBatteryCapacity = 0.3f;
-        /// <summary>
-        /// How long the ship will remain at the waypoint
-        /// </summary>
-        TimeSpan parkingPeriodAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
-        /// <summary>
-        /// Switch to orbit mode or make use of custom waypoints
-        /// </summary>
-        bool orbitMode = false;
-        /// <summary>
-        /// The distance from the center position where the ship will remain for orbit mode
-        /// </summary>
-        double orbitRadius = DefaultOrbitRadius;
-        /// <summary>
-        /// The center position of the orbit
-        /// </summary>
-        Vector3D orbitCenterPosition = new Vector3D(0, 0, 0);
-        /// <summary>
-        /// whether to use real time (second between calls) or pure UpdateFrequency
-        /// for update frequency
-        /// </summary>
+        
+        // Use and recharge batteries if required
+        bool ManageBattery = true;
+        
+        // How long the ship will remain at the waypoint
+        TimeSpan ParkingPeriodAtWaypoint = new TimeSpan(0, 0, 0, 5, 0);
+        
+        // Switch to orbit mode or make use of custom waypoints
+        bool OrbitMode = false;
+        
+        // The distance from the center position where the ship will remain for orbit mode
+        double OrbitRadius = DefaultOrbitRadius;
+        
+        // The center position of the orbit
+        Vector3D OrbitCenterPosition = new Vector3D(0, 0, 0);
+        
+        // Whether to use real time (second between calls) or pure UpdateFrequency for update frequency
         readonly bool USE_REAL_TIME = false;
-        /// <summary>
-        /// Defines the FREQUENCY.
-        /// </summary>
+        
+        // Defines the FREQUENCY.
         const UpdateFrequency FREQUENCY = UpdateFrequency.Update100;
 
         #endregion
@@ -346,11 +337,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 1, VERSION_REVISION = 1;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 1, VERSION_REVISION = 2;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-09-05";
+        const string VERSION_UPDATE = "2020-09-08";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>

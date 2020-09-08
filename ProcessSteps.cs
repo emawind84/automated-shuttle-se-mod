@@ -25,7 +25,7 @@ namespace IngameScript
 
         void ProcessStepResetControl()
         {
-            if (!orbitMode)
+            if (!OrbitMode)
             {  // TODO need fix
                 ResetBatteryMode();
                 ResetAutopilot();
@@ -40,7 +40,7 @@ namespace IngameScript
 
         void ProcessStepFindNextWaypoint()
         {
-            if (orbitMode)
+            if (OrbitMode)
             {
                 currentWaypoint = FindNextOrbitWaypoint();
             }
@@ -71,12 +71,19 @@ namespace IngameScript
 
         void ProcessStepRechargeBatteries()
         {
-            SkipIfOrbitMode();
             RunEveryCycles(2);
+
+            SkipIfOrbitMode();
             SkipIfNotConnected();
 
+            if (ManageBattery == false)
+            {
+                processStep++;
+                throw new PutOffExecutionException();
+            }
+
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional);
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional && blk.Enabled);
             batteries.Sort(SortByStoredPower);
 
             if (batteries.Count() == 0)
@@ -383,12 +390,12 @@ namespace IngameScript
             if (currentWaypoint.StopAtWaypoint)
             {
                 DateTime n = DateTime.Now;
-                if (n - previousStepEndTime >= parkingPeriodAtWaypoint)
+                if (n - previousStepEndTime >= ParkingPeriodAtWaypoint)
                 {
                     processStep++;
                 }
 
-                TimeSpan remainingSeconds = parkingPeriodAtWaypoint - (n - previousStepEndTime);
+                TimeSpan remainingSeconds = ParkingPeriodAtWaypoint - (n - previousStepEndTime);
                 informationTerminals.Text = string.Format("Departure for {0} in {1}s", GetNextWaypoint()?.Name, Math.Round(remainingSeconds.TotalSeconds, 0));
             }
             else

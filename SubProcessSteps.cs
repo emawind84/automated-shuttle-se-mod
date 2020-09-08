@@ -38,7 +38,7 @@ namespace IngameScript
         bool SubProcessCheckRemainingBatteryCapacity(StringWrapper log)
         {
             var batteries = new List<IMyBatteryBlock>();
-            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional);
+            GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional && blk.Enabled);
             if (batteries.Count() > 0)
             {
                 float remainingCapacity = RemainingBatteryCapacity(batteries);

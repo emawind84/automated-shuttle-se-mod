@@ -105,7 +105,7 @@ namespace IngameScript
 
         void SkipIfOrbitMode()
         {
-            if (orbitMode)
+            if (OrbitMode)
             {
                 processStep++;
                 throw new PutOffExecutionException();
@@ -198,7 +198,8 @@ namespace IngameScript
             // init settings
             _ini.TryParse(Me.CustomData);
 
-            parkingPeriodAtWaypoint = TimeSpan.FromSeconds(_ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10));
+            ParkingPeriodAtWaypoint = TimeSpan.FromSeconds(_ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10));
+            ManageBattery = _ini.Get(ScriptPrefixTag, "ManageBattery").ToBoolean(true);
 
             #region Waypoints Settings
             string customDataWaypoints = _ini.Get(ScriptPrefixTag, "Waypoints").ToString();
@@ -218,18 +219,18 @@ namespace IngameScript
             #endregion
 
             #region Orbit Settings
-            orbitMode = _ini.Get(ScriptPrefixTag, "OrbitMode").ToBoolean(false);
-            EchoR($"OrbitMode: {orbitMode}");
-            if (orbitMode)
+            OrbitMode = _ini.Get(ScriptPrefixTag, "OrbitMode").ToBoolean(false);
+            EchoR($"OrbitMode: {OrbitMode}");
+            if (OrbitMode)
             {
-                orbitRadius = _ini.Get(ScriptPrefixTag, "OrbitRadius").ToDouble(DefaultOrbitRadius);
-                if (orbitRadius < 100) orbitRadius = DefaultOrbitRadius;
-                EchoR($"OrbitRadius: {orbitRadius}");
+                OrbitRadius = _ini.Get(ScriptPrefixTag, "OrbitRadius").ToDouble(DefaultOrbitRadius);
+                if (OrbitRadius < 100) OrbitRadius = DefaultOrbitRadius;
+                EchoR($"OrbitRadius: {OrbitRadius}");
                 string orbitCenterPositionUserData = _ini.Get(ScriptPrefixTag, "OrbitCenterPosition").ToString();
                 MyWaypointInfo _tmp;
                 if (MyWaypointInfo.TryParse(orbitCenterPositionUserData, out _tmp))
-                    orbitCenterPosition = _tmp.Coords;
-                EchoR($"OrbitCenterPosition: {orbitCenterPosition}");
+                    OrbitCenterPosition = _tmp.Coords;
+                EchoR($"OrbitCenterPosition: {OrbitCenterPosition}");
             }
             #endregion
         }
@@ -308,11 +309,11 @@ namespace IngameScript
 
         Waypoint FindNextOrbitWaypoint()
         {
-            double planetRadius = orbitRadius;
+            double planetRadius = OrbitRadius;
 
             var xDirectionalVector = new Vector3D(1, 0, 0);
             var yDirectionalVector = new Vector3D(0, 1, 0);
-            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - orbitCenterPosition);
+            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - OrbitCenterPosition);
 
             var dotX = Vector3D.Dot(xDirectionalVector, entityToPlanetDirectionalVector);
             var dotY = Vector3D.Dot(yDirectionalVector, entityToPlanetDirectionalVector);
@@ -333,7 +334,7 @@ namespace IngameScript
             MatrixD xRotationMatrix = new MatrixD(1, 0, 0, 0, Math.Cos(orbitYZAngle), -Math.Sin(orbitYZAngle), 0, Math.Sin(orbitYZAngle), Math.Cos(orbitYZAngle));
             var gpsCoords = new Vector3D(x, y, z);
             gpsCoords = Vector3D.Rotate(gpsCoords, xRotationMatrix);
-            gpsCoords = Vector3D.Add(gpsCoords, orbitCenterPosition);
+            gpsCoords = Vector3D.Add(gpsCoords, OrbitCenterPosition);
 
             //EchoR($"GPS:NextWP:{gpsCoords.X}:{gpsCoords.Y}:{gpsCoords.Z}:#FFF17575:");
 
@@ -343,7 +344,7 @@ namespace IngameScript
         double CalculateYZAngle()
         {
             var yDirectionalVector = new Vector3D(0, 1, 0);
-            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - orbitCenterPosition);
+            var entityToPlanetDirectionalVector = Vector3D.Normalize(ReferenceBlock.GetPosition() - OrbitCenterPosition);
             var entityAngle = Math.Atan2(entityToPlanetDirectionalVector.Y, entityToPlanetDirectionalVector.Z)
                 - Math.Atan2(yDirectionalVector.Y, yDirectionalVector.Z);
             if (entityAngle < 0)
