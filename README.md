@@ -5,9 +5,9 @@ Automated Shuttle a Space Engineers Mod
 
 Place the tag `[SHUTTLE]` in the Custom Data of the Programmable Block where the script need to run, then add the following properties as needed:
 
-- `ParkingPeriod=120` - How long it will stay at the current waypoint before departure (only if the waypoint has the StopAtWaypoint set, `true` by default in non Orbit Mode)
+- `ParkingPeriod=120` - How long it will stay, in seconds, at the current waypoint before departure (only if the waypoint has the StopAtWaypoint set, `true` by default in non Orbit Mode)
 - `ManageBattery=true` - Decide whether or not the script should handle the battery charging when connected to another grid.
-- `Waypoints=[GPS1],[GPS2]` - Set the waypoints, reached the last one, the ship will set route for the first (1 -> 2 -> 3 -> 1 -> 2 -> 3)
+- `Waypoints=[GPS1],[GPS2]` - Set the waypoints, reached the last one, the ship will set route for the first (1 -> 2 -> 3 -> 1 -> 2 -> 3). Use the game format for GPS.
 
     Waypoints can also be written like below:
 
@@ -62,9 +62,9 @@ The orbit mode is the one that I enjoy most, easy to set and just cool to see it
 
 These are the properties that need to be set in the Custom Data of the Programmable Block where the script is running:
 
-- `OrbitMode=true`
-- `OrbitCenterPosition=[GPS Location]`
-- `OrbitRadius=100000`
+- `OrbitMode=true` - Enable orbit mode
+- `OrbitCenterPosition=[GPS Location]` - The center position using the game GPS format (remove the last color information from the GPS if it doesn't work)
+- `OrbitRadius=100000` - How far from the center point the ship will orbit in meters
 
 
 ## How to Run
