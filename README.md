@@ -79,3 +79,12 @@ The script will not start automatically, this is to prevent issues and give the 
 - `nextstep` - Go to the next step, no matter what.
 - `addwaypoint` - Add a new waypoint, it will not be saved in Custom Data
 - `nextwaypoint` - Go to the next waypoint, skip all the remaining steps
+
+## GitHub
+
+https://github.com/emawind84/automated-shuttle-se-mod
+
+
+Supplemental script for listening to broadcast messages
+
+https://github.com/emawind84/automated-shuttle-listener-se-mod
