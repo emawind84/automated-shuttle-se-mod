@@ -9,14 +9,14 @@ Place the tag `[SHUTTLE]` in the Custom Data of the Programmable Block where the
 
 - `ParkingPeriod=120` - How long it will stay, in seconds, at the current waypoint before departure (only if the waypoint has the StopAtWaypoint set, `true` by default in non Orbit Mode)
 - `ManageBattery=true` - Decide whether or not the script should handle the battery charging when connected to another grid.
-- `Waypoints=[GPS1],[GPS2]` - Set the waypoints, reached the last one, the ship will set route for the first (1 -> 2 -> 3 -> 1 -> 2 -> 3). Use the game format for GPS.
+- `Waypoints=W1,W2` - Set the waypoints, separated by comma, using the game GPS format (`GPS:Waypoint 2:139680.9:-138123.54:77539.84:`), reached the last waypoint, the ship will set route for the first (1 -> 2 -> 3 -> 1 -> 2 -> 3).
 
     Waypoints can also be written like below:
 
     ```
     Waypoints=
-    |GPS1,
-    |GPS2
+    |GPS:Waypoint 1:52693.37:-103844.05:40101.32:,
+    |GPS:Waypoint 2:139680.9:-138123.54:77539.84:
     ```
 
 There are other settings that can be changed in the script as well:
@@ -65,7 +65,7 @@ The orbit mode is the one that I enjoy most, easy to set and just cool to see it
 These are the properties that need to be set in the Custom Data of the Programmable Block where the script is running:
 
 - `OrbitMode=true` - Enable orbit mode
-- `OrbitCenterPosition=[GPS Location]` - The center position using the game GPS format (remove the last color information from the GPS if it doesn't work)
+- `OrbitCenterPosition=GPS:Center Point:139680.9:-138123.54:77539.84:` - The center position using the game GPS format (remove the last color information from the GPS if it doesn't work)
 - `OrbitRadius=100000` - How far from the center point the ship will orbit in meters
 
 
