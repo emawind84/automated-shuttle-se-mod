@@ -1,6 +1,8 @@
 # automated-shuttle-se-mod
 Automated Shuttle a Space Engineers Mod
 
+The script main purpose was to run on a shuttle going back and forth between two or more waypoints, docking, stop at each waypoint, charging batteries, wait for a certain period for passengers, departing for the next waypoint and so on. A new orbit mode is available as well where you need to set three parameters and the ship will start orbiting around a predefined point in space, it will automatically go to the nearest point along the orbit and it will follow the same orbit until the script is shutted down.
+
 ## Script Setup
 
 Place the tag `[SHUTTLE]` in the Custom Data of the Programmable Block where the script need to run, then add the following properties as needed:
