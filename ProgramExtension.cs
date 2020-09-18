@@ -277,7 +277,7 @@ namespace IngameScript
                 var radians = Math.Acos(MathHelper.Clamp(dot, -1f, 1f));
                 var degrees = MathHelper.ToDegrees(radians);
                 
-                if (degrees > 0 && degrees < 65)
+                if (degrees > 0 && degrees < 60)
                 {
                     //EchoR(string.Format("Grid detected: {0}, degrees {1}, type: {2}", entity.Name, degrees, entity.Type));
                     return true;
