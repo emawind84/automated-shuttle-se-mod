@@ -52,8 +52,9 @@ namespace IngameScript
 
                     // disable blocks with DisableOnEmergencyTag
                     DisableBlocks(blk => MyIni.HasSection(blk.CustomData, DisableOnEmergencyTag));
+                    informationTerminals.Text = string.Format("Critical power detected");
                 }
-                else
+                else if (criticalBatteryCapacityDetected)
                 {
                     criticalBatteryCapacityDetected = false;
                     var timerblocks = new List<IMyTimerBlock>();

@@ -58,9 +58,9 @@ namespace IngameScript
             return block.IsSameConstructAs(Me);
         }
 
-        void EnableBlocks(Func<IMyFunctionalBlock, bool> collect)
+        void EnableBlocks(Func<IMyTerminalBlock, bool> collect)
         {
-            var blocks = new List<IMyFunctionalBlock>();
+            var blocks = new List<IMyTerminalBlock>();
             GridTerminalSystem.GetBlocksOfType(blocks, blk => collect(blk));
             foreach (var blk in blocks)
             {
