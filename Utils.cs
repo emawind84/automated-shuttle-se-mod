@@ -58,23 +58,29 @@ namespace IngameScript
             return block.IsSameConstructAs(Me);
         }
 
-        void EnableBlocks(Func<IMyTerminalBlock, bool> collect)
+        void EnableBlocks(Func<IMyFunctionalBlock, bool> collect)
         {
             var blocks = new List<IMyFunctionalBlock>();
             GridTerminalSystem.GetBlocksOfType(blocks, blk => collect(blk));
             foreach (var blk in blocks)
             {
-                blk.Enabled = true;
+                if (blk is IMyFunctionalBlock)
+                    (blk as IMyFunctionalBlock).Enabled = true;
+                if (blk is IMyRemoteControl)
+                    (blk as IMyRemoteControl).SetAutoPilotEnabled(true);
             }
         }
 
         void DisableBlocks(Func<IMyTerminalBlock, bool> collect)
         {
-            var blocks = new List<IMyFunctionalBlock>();
+            var blocks = new List<IMyTerminalBlock>();
             GridTerminalSystem.GetBlocksOfType(blocks, blk => collect(blk));
             foreach (var blk in blocks)
             {
-                blk.Enabled = false;
+                if (blk is IMyFunctionalBlock)
+                    (blk as IMyFunctionalBlock).Enabled = false;
+                if (blk is IMyRemoteControl)
+                    (blk as IMyRemoteControl).SetAutoPilotEnabled(false);
             }
         }
 

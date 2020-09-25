@@ -71,16 +71,16 @@ namespace IngameScript
 
         void ProcessStepRechargeBatteries()
         {
-            RunEveryCycles(2);
-
-            SkipIfOrbitMode();
-            SkipIfNotConnected();
-
             if (ManageBattery == false)
             {
                 processStep++;
                 throw new PutOffExecutionException();
             }
+
+            RunEveryCycles(2);
+
+            SkipIfOrbitMode();
+            SkipIfNotConnected();
 
             var batteries = new List<IMyBatteryBlock>();
             GridTerminalSystem.GetBlocksOfType(batteries, blk => CollectSameConstruct(blk) && blk.IsFunctional && blk.Enabled);
@@ -229,8 +229,9 @@ namespace IngameScript
         void ProcessStepGoToWaypoint()
         {
             SkipIfDocked();
-            
             var controlBlock = RemoteControl;
+            SkipIfCriticalBatteryDetected(controlBlock);
+
             controlBlock.SetCollisionAvoidance(true);
             controlBlock.FlightMode = FlightMode.OneWay;
             controlBlock.SetDockingMode(false);
@@ -284,7 +285,7 @@ namespace IngameScript
         void ProcessStepTravelToWaypoint()
         {
             SkipIfDocked();
-            RunIfStopAtWaypointEnabled();
+            SkipIfStopAtWaypointDisabled();
 
             var _rc = RemoteControl;
             double distanceFromWaypoint = Vector3D.Distance(currentWaypoint.Coords, ReferenceBlock.GetPosition());

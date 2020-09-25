@@ -72,7 +72,7 @@ namespace IngameScript
             }
         }
 
-        void RunIfStopAtWaypointEnabled()
+        void SkipIfStopAtWaypointDisabled()
         {
             if (!currentWaypoint.StopAtWaypoint)
             {
@@ -109,6 +109,18 @@ namespace IngameScript
             {
                 processStep++;
                 throw new PutOffExecutionException();
+            }
+        }
+
+        void SkipIfCriticalBatteryDetected(IMyTerminalBlock block = null)
+        {
+            if (criticalBatteryCapacityDetected)
+            {
+                if (block == null || MyIni.HasSection(block.CustomData, DisableOnEmergencyTag))
+                {
+                    processStep++;
+                    throw new PutOffExecutionException();
+                }
             }
         }
         
