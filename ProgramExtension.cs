@@ -210,8 +210,10 @@ namespace IngameScript
             // init settings
             _ini.TryParse(Me.CustomData);
 
-            ParkingPeriodAtWaypoint = TimeSpan.FromSeconds(_ini.Get(ScriptPrefixTag, "ParkingPeriod").ToInt16(10));
-            ManageBattery = _ini.Get(ScriptPrefixTag, "ManageBattery").ToBoolean(true);
+            ParkingPeriodAtWaypoint = TimeSpan.FromSeconds(_ini.Get(ScriptPrefixTag, "ParkingPeriod").ToDouble(ParkingPeriodAtWaypoint.TotalSeconds));
+            ManageBattery = _ini.Get(ScriptPrefixTag, "ManageBattery").ToBoolean(ManageBattery);
+            MinBatteryCapacity = _ini.Get(ScriptPrefixTag, "MinBatteryCapacity").ToSingle(MinBatteryCapacity);
+            CriticalBatteryCapacity = _ini.Get(ScriptPrefixTag, "CriticalBatteryCapacity").ToSingle(CriticalBatteryCapacity);
 
             #region Waypoints Settings
             string customDataWaypoints = _ini.Get(ScriptPrefixTag, "Waypoints").ToString();

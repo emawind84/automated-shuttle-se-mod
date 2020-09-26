@@ -54,21 +54,21 @@ namespace IngameScript
         const double DefaultOrbitRadius = 50000;
         
         // Safe distance from dock before going to next waypoint
-        const int SafeDistanceFromDock = 20;
+        int SafeDistanceFromDock = 20;
 
         // The overall batteries capacity in order to consider them charged
         // The value express the percentage of capacity normalized to range [0,1].
-        const float ChargedBatteryCapacity = 0.9f;
+        float ChargedBatteryCapacity = 0.9f;
 
         // The minimum battery capacity to operate the ship.
         // If the capacity go down this level the batteries will start recharging if the ship is docked
         // The value express the percentage of capacity normalized to range [0,1].
-        const float MinBatteryCapacity = 0.5f;
+        float MinBatteryCapacity = 0.5f;
 
         // If the batteries go below this threshold something is wrong and action should be taken.
         // Timer blocks with the right tag  will be notified and blocks managed by the script will be shutted down if possible.
         // The value express the percentage of capacity normalized to range [0,1].
-        const float CriticalBatteryCapacity = 0.2f;
+        float CriticalBatteryCapacity = 0.2f;
         
         // Use and recharge batteries if required
         bool ManageBattery = true;
@@ -340,11 +340,11 @@ namespace IngameScript
 
         const string SCRIPT_NAME = "ED's Automated Shuttle";
         // current script version
-        const int VERSION_MAJOR = 1, VERSION_MINOR = 2, VERSION_REVISION = 0;
+        const int VERSION_MAJOR = 1, VERSION_MINOR = 2, VERSION_REVISION = 1;
         /// <summary>
         /// Current script update time.
         /// </summary>
-        const string VERSION_UPDATE = "2020-09-25";
+        const string VERSION_UPDATE = "2020-09-26";
         /// <summary>
         /// A formatted string of the script version.
         /// </summary>
