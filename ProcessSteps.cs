@@ -230,13 +230,10 @@ namespace IngameScript
         {
             SkipIfDocked();
             var controlBlock = RemoteControl;
-            SkipIfCriticalBatteryDetected(controlBlock);
-
+            
             controlBlock.SetCollisionAvoidance(true);
             controlBlock.FlightMode = FlightMode.OneWay;
-            controlBlock.SetDockingMode(false);
-            if (currentWaypoint.StopAtWaypoint) controlBlock.SetDockingMode(true);
-
+            controlBlock.SetDockingMode(currentWaypoint.StopAtWaypoint);
             controlBlock.ClearWaypoints();
             controlBlock.AddWaypoint(currentWaypoint.Coords, currentWaypoint.Name);
             controlBlock.SetAutoPilotEnabled(true);
