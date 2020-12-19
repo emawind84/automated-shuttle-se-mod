@@ -77,7 +77,7 @@ namespace IngameScript
                 throw new PutOffExecutionException();
             }
 
-            RunEveryCycles(2);
+            //RunEveryCycles(2);
 
             SkipIfOrbitMode();
             SkipIfNotConnected();
@@ -98,12 +98,8 @@ namespace IngameScript
                 || (remainingCapacity < ChargedBatteryCapacity && lowBatteryCapacityDetected))
             {
                 lowBatteryCapacityDetected = true;
-                var batteriesToCharge = Convert.ToInt16(batteries.Count / 2 + 0.5f);
-                foreach (var battery in batteries.Skip(batteriesToCharge))
+                foreach (var battery in batteries)
                 {
-                    battery.ChargeMode = ChargeMode.Auto;
-                }
-                foreach (var battery in batteries.Take(batteriesToCharge)) {
                     battery.ChargeMode = ChargeMode.Recharge;
                 }
 
